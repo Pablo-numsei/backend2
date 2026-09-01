@@ -1,7 +1,7 @@
-package com.suaempresa.backend.controller;
+package com.itb.controller;
 
-import com.suaempresa.backend.model.Order;
-import com.suaempresa.backend.repository.OrderRepository;
+import com.itb.model.Order;
+import com.itb.repository.OrderRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -59,3 +59,4 @@ public class OrderController {
         return ResponseEntity.noContent().build();
     }
 }
+

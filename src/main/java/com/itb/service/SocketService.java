@@ -1,6 +1,6 @@
-package com.suaempresa.backend.service;
+package com.itb.service;
 
-import com.suaempresa.backend.model.Order;
+import com.itb.model.Order;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -24,3 +24,4 @@ public class SocketService {
         messagingTemplate.convertAndSend("/topic/orders", order);
     }
 }
+

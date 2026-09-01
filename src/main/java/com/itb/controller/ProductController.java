@@ -1,7 +1,7 @@
-package com.suaempresa.backend.controller;
+package com.itb.controller;
 
-import com.suaempresa.backend.model.Product;
-import com.suaempresa.backend.repository.ProductRepository;
+import com.itb.model.Product;
+import com.itb.repository.ProductRepository;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -64,3 +64,4 @@ public class ProductController {
         return ResponseEntity.noContent().build();
     }
 }
+

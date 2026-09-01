@@ -1,6 +1,6 @@
-package com.suaempresa.backend.repository;
+package com.itb.repository;
 
-import com.suaempresa.backend.model.Order;
+import com.itb.model.Order;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -14,3 +14,4 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByStatus(Order.OrderStatus status);
 }
+

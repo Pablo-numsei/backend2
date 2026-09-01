@@ -1,7 +1,7 @@
-package com.suaempresa.backend.service;
+package com.itb.service;
 
-import com.suaempresa.backend.model.Order;
-import com.suaempresa.backend.repository.OrderRepository;
+import com.itb.model.Order;
+import com.itb.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -49,3 +49,4 @@ public class PaymentService {
         return updatedOrder;
     }
 }
+

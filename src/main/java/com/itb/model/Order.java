@@ -1,4 +1,4 @@
-package com.suaempresa.backend.model;
+package com.itb.model;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -45,3 +45,4 @@ public class Order {
         SHIPPED
     }
 }
+

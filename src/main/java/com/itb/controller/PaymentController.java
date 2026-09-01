@@ -1,7 +1,7 @@
-package com.suaempresa.backend.controller;
+package com.itb.controller;
 
-import com.suaempresa.backend.model.Order;
-import com.suaempresa.backend.service.PaymentService;
+import com.itb.model.Order;
+import com.itb.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,3 +32,4 @@ public class PaymentController {
         return ResponseEntity.ok(updatedOrder);
     }
 }
+

@@ -1,4 +1,4 @@
-package com.suaempresa.backend;
+package com.itb;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,3 +15,4 @@ class BackendApplicationTests {
     }
 
 }
+
