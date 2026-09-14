@@ -1,7 +1,6 @@
 package com.itb.model;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,10 +8,8 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * Equivalente ao antigo models/Order.js
- */
 @Entity
+@Table(name = "Pedidos")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -20,29 +17,36 @@ public class Order {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_pedido")
     private Long id;
 
     @ManyToOne
-    @JoinColumn(name = "product_id", nullable = false)
-    @NotNull(message = "O produto e obrigatorio")
-    private Product product;
+    @JoinColumn(name = "mesa_id", nullable = false)
+    private Mesa mesa;
 
-    @NotNull(message = "A quantidade e obrigatoria")
-    private Integer quantity;
+    @ManyToOne
+    @JoinColumn(name = "status_id", nullable = false)
+    private StatusPedido status;
 
-    @NotNull(message = "O valor total e obrigatorio")
-    private BigDecimal totalAmount;
+    @Column(name = "valor_total", nullable = false, precision = 10, scale = 2)
+    private BigDecimal totalValue;
 
-    @Enumerated(EnumType.STRING)
-    private OrderStatus status = OrderStatus.PENDING;
+    @Column(name = "confirmado", nullable = false)
+    private Boolean confirmed;
 
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(name = "confirmado_em")
+    private LocalDateTime confirmedAt;
 
-    public enum OrderStatus {
-        PENDING,
-        PAID,
-        CANCELLED,
-        SHIPPED
-    }
+    @Column(name = "criado_em", insertable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "alterado_em")
+    private LocalDateTime updatedAt;
+
+    @ManyToOne
+    @JoinColumn(name = "alterado_por")
+    private Usuario updatedBy;
+
+    @Column(name = "excluido_em")
+    private LocalDateTime deletedAt;
 }
-

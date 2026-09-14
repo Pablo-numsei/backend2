@@ -6,12 +6,10 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
-/**
- * Camada de acesso a dados dos pedidos.
- */
 @Repository
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    List<Order> findByStatus(Order.OrderStatus status);
-}
+    List<Order> findByDeletedAtIsNullOrderByCreatedAtAsc();
 
+    List<Order> findByStatus_NameAndDeletedAtIsNullOrderByCreatedAtAsc(String status);
+}
