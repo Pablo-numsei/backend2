@@ -1,16 +1,16 @@
 package com.itb.controller;
 
-import com.itb.model.Order;
+import com.itb.dto.PaymentRequest;
+import com.itb.model.Payment;
 import com.itb.service.PaymentService;
+
+import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * Equivalente ao antigo controllers/paymentController.js
- * As rotas que antes ficavam em routes/paymentRoutes.js
- * agora sao definidas diretamente aqui, via anotacoes.
- */
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
@@ -20,16 +20,26 @@ public class PaymentController {
 
     // POST /api/payments/{orderId}/process
     @PostMapping("/{orderId}/process")
-    public ResponseEntity<Order> processPayment(@PathVariable Long orderId) {
-        Order updatedOrder = paymentService.processPayment(orderId);
-        return ResponseEntity.ok(updatedOrder);
+    public ResponseEntity<Payment> processPayment(
+            @PathVariable Long orderId,
+            @Valid @RequestBody PaymentRequest request
+    ) {
+
+        Payment payment =
+                paymentService.processPayment(orderId, request);
+
+        return ResponseEntity.ok(payment);
     }
 
     // POST /api/payments/{orderId}/cancel
     @PostMapping("/{orderId}/cancel")
-    public ResponseEntity<Order> cancelPayment(@PathVariable Long orderId) {
-        Order updatedOrder = paymentService.cancelPayment(orderId);
-        return ResponseEntity.ok(updatedOrder);
+    public ResponseEntity<Payment> cancelPayment(
+            @PathVariable Long orderId
+    ) {
+
+        Payment payment =
+                paymentService.cancelPayment(orderId);
+
+        return ResponseEntity.ok(payment);
     }
 }
-

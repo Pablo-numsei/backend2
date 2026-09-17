@@ -5,7 +5,9 @@ import com.itb.dto.ItemPedidoRequest;
 import com.itb.dto.PedidoCreateRequest;
 import com.itb.model.Order;
 import com.itb.repository.OrderRepository;
+
 import lombok.RequiredArgsConstructor;
+
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ public class PedidoService {
 
     private final JdbcTemplate jdbcTemplate;
     private final OrderRepository orderRepository;
+    private final SocketService socketService;
 
     public Order criarPedido(PedidoCreateRequest request) {
 
@@ -64,54 +67,57 @@ public class PedidoService {
 
         Object[] args = parametros.toArray();
 
-String consultaSql = java.util.Objects.requireNonNull(
-        sql.toString()
-);
+        Long pedidoId = jdbcTemplate.queryForObject(
+                sql.toString(),
+                Long.class,
+                args
+        );
 
-Long pedidoId = jdbcTemplate.queryForObject(
-        consultaSql,
-        Long.class,
-        args
-);
-        return orderRepository
+        Order pedido = orderRepository
                 .findById(pedidoId)
                 .orElseThrow(() ->
                         new IllegalStateException(
                                 "Pedido criado, mas nao encontrado"
                         )
                 );
+
+        socketService.notifyOrderUpdate(pedido);
+
+        return pedido;
     }
 
-
-
-
-
     public Order avancarStatus(
-        Long pedidoId,
-        AvancarStatusRequest request) {
+            Long pedidoId,
+            AvancarStatusRequest request
+    ) {
 
-    String sql = """
-            EXEC dbo.sp_AvancarStatusPedido
-                @id_pedido = ?,
-                @novo_status = ?,
-                @alterado_por = ?
-            """;
+        String sql = """
+                EXEC dbo.sp_AvancarStatusPedido
+                    @id_pedido = ?,
+                    @novo_status = ?,
+                    @alterado_por = ?
+                """;
 
-    jdbcTemplate.update(
-            sql,
-            pedidoId,
-            request.novoStatus(),
-            new SqlParameterValue(
-                    Types.BIGINT,
-                    request.alteradoPor()
-            )
-    );
+        jdbcTemplate.update(
+                sql,
+                pedidoId,
+                request.novoStatus(),
+                new SqlParameterValue(
+                        Types.BIGINT,
+                        request.alteradoPor()
+                )
+        );
 
-    return orderRepository.findById(pedidoId)
-            .orElseThrow(() ->
-                    new IllegalStateException(
-                            "Pedido nao encontrado apos atualizar o status"
-                    )
-            );
-}
+        Order pedido = orderRepository
+                .findById(pedidoId)
+                .orElseThrow(() ->
+                        new IllegalStateException(
+                                "Pedido nao encontrado apos atualizar o status"
+                        )
+                );
+
+        socketService.notifyOrderUpdate(pedido);
+
+        return pedido;
+    }
 }

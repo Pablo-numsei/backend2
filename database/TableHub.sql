@@ -25,18 +25,18 @@ SELECT DB_NAME() AS BancoAtual;
 
 /*
     TABLE HUB - SQL SERVER
-    ESTRUTURA DO BANCO (versão compatível sem THROW)
+    ESTRUTURA DO BANCO (versï¿½o compatï¿½vel sem THROW)
 
     IMPORTANTE:
     1) Execute primeiro o arquivo 01_Criar_Banco_TableHub.sql.
     2) Depois execute este arquivo.
-    3) Esta versão usa RAISERROR em vez de THROW para funcionar em
+    3) Esta versï¿½o usa RAISERROR em vez de THROW para funcionar em
        ambientes/targets SQL Server mais antigos e evitar os erros
        de IntelliSense mostrados no editor.
 */
 
-/* Abra esta consulta já conectado ao banco TableHub.
-   Esta verificação evita criar objetos acidentalmente em master. */
+/* Abra esta consulta jï¿½ conectado ao banco TableHub.
+   Esta verificaï¿½ï¿½o evita criar objetos acidentalmente em master. */
 IF DB_NAME() <> N'TableHub'
 BEGIN
     RAISERROR(N'Conecte esta consulta ao banco TableHub antes de executar o script.', 16, 1);
@@ -49,7 +49,7 @@ SET XACT_ABORT ON;
 GO
 
 /* ============================================================
-   RN010 - Perfis são entidades próprias, não texto livre.
+   RN010 - Perfis sï¿½o entidades prï¿½prias, nï¿½o texto livre.
    ============================================================ */
 CREATE TABLE dbo.Perfis (
     id_perfil      BIGINT IDENTITY(1,1) NOT NULL,
@@ -65,13 +65,13 @@ GO
 /* RN010 - Perfis oficiais do sistema. */
 INSERT INTO dbo.Perfis (nome, descricao)
 VALUES
-    (N'Administrador', N'Gerencia usuários, produtos, categorias e configurações.'),
+    (N'Administrador', N'Gerencia usuï¿½rios, produtos, categorias e configuraï¿½ï¿½es.'),
     (N'Cozinha',       N'Visualiza e atualiza o fluxo de preparo dos pedidos.'),
-    (N'Garçom',        N'Acompanha pedidos, mesas e entregas.');
+    (N'Garï¿½om',        N'Acompanha pedidos, mesas e entregas.');
 GO
 
 /* ============================================================
-   RN012 - Usuários guardam senha somente como hash.
+   RN012 - Usuï¿½rios guardam senha somente como hash.
    RN010 - perfil_id referencia a tabela Perfis.
    Entidade principal: criado_em e alterado_em.
    ============================================================ */
@@ -93,7 +93,7 @@ CREATE TABLE dbo.Usuarios (
 );
 GO
 
-/* ON DELETE NO ACTION em Perfis: impede apagar um perfil ainda usado por usuário (RN010). */
+/* ON DELETE NO ACTION em Perfis: impede apagar um perfil ainda usado por usuï¿½rio (RN010). */
 CREATE INDEX IX_Usuarios_Perfil ON dbo.Usuarios(perfil_id);
 GO
 
@@ -117,7 +117,7 @@ GO
 
 /* ============================================================
    Categorias de produtos.
-   Exclusão lógica via ativo evita quebrar produtos históricos.
+   Exclusï¿½o lï¿½gica via ativo evita quebrar produtos histï¿½ricos.
    ============================================================ */
 CREATE TABLE dbo.Categorias (
     id_categoria   BIGINT IDENTITY(1,1) NOT NULL,
@@ -134,8 +134,8 @@ GO
 
 /* ============================================================
    RN007/RF014 - Estoque e disponibilidade ficam no schema.
-   RN008 - Auditoria mínima: alterado_por e alterado_em.
-   Regra monetária - preço sempre DECIMAL(10,2), nunca FLOAT/REAL.
+   RN008 - Auditoria mï¿½nima: alterado_por e alterado_em.
+   Regra monetï¿½ria - preï¿½o sempre DECIMAL(10,2), nunca FLOAT/REAL.
    ============================================================ */
 CREATE TABLE dbo.Produtos (
     id_produto      BIGINT IDENTITY(1,1) NOT NULL,
@@ -163,8 +163,8 @@ CREATE TABLE dbo.Produtos (
 GO
 
 /*
-   ON DELETE NO ACTION em Categoria: categoria utilizada não pode sumir e quebrar produto.
-   ON DELETE NO ACTION em alterado_por: preserva a identidade do usuário da auditoria (RN008).
+   ON DELETE NO ACTION em Categoria: categoria utilizada nï¿½o pode sumir e quebrar produto.
+   ON DELETE NO ACTION em alterado_por: preserva a identidade do usuï¿½rio da auditoria (RN008).
 */
 CREATE INDEX IX_Produtos_Categoria ON dbo.Produtos(categoria_id);
 CREATE INDEX IX_Produtos_Disponibilidade ON dbo.Produtos(ativo, disponivel, categoria_id);
@@ -172,8 +172,8 @@ GO
 
 /* ============================================================
    RN007/RF014 - Sincroniza estoque/ativo com disponibilidade.
-   estoque = 0 ou ativo = 0 => indisponível.
-   estoque > 0 e ativo = 1 => disponível.
+   estoque = 0 ou ativo = 0 => indisponï¿½vel.
+   estoque > 0 e ativo = 1 => disponï¿½vel.
    ============================================================ */
 CREATE TRIGGER dbo.TR_Produtos_SincronizaDisponibilidade
 ON dbo.Produtos
@@ -182,7 +182,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    /* Evita recursão causada pelo UPDATE executado pelo próprio trigger. */
+    /* Evita recursï¿½o causada pelo UPDATE executado pelo prï¿½prio trigger. */
     IF TRIGGER_NESTLEVEL() > 1 RETURN;
 
     UPDATE p
@@ -194,8 +194,8 @@ END;
 GO
 
 /*
-   RN008 + preservação de histórico:
-   DELETE de produto vira exclusão lógica, mantendo referências de pedidos antigos.
+   RN008 + preservaï¿½ï¿½o de histï¿½rico:
+   DELETE de produto vira exclusï¿½o lï¿½gica, mantendo referï¿½ncias de pedidos antigos.
 */
 CREATE TRIGGER dbo.TR_Produtos_SoftDelete
 ON dbo.Produtos
@@ -238,7 +238,7 @@ VALUES
 GO
 
 /* ============================================================
-   RN005 - Relações de transição válidas garantidas pelo banco.
+   RN005 - Relaï¿½ï¿½es de transiï¿½ï¿½o vï¿½lidas garantidas pelo banco.
    ============================================================ */
 CREATE TABLE dbo.Transicoes_Status_Pedido (
     status_origem_id   BIGINT NOT NULL,
@@ -255,7 +255,7 @@ CREATE TABLE dbo.Transicoes_Status_Pedido (
 );
 GO
 
-/* ON DELETE NO ACTION: status utilizado pelo fluxo não pode ser removido. */
+/* ON DELETE NO ACTION: status utilizado pelo fluxo nï¿½o pode ser removido. */
 INSERT INTO dbo.Transicoes_Status_Pedido (status_origem_id, status_destino_id)
 SELECT origem.id_status, destino.id_status
 FROM (VALUES
@@ -269,9 +269,9 @@ GO
 
 /* ============================================================
    RN003/RN004/RN009 - Pedido principal.
-   RN004: criado_em é gerado pelo SQL Server com GETDATE().
+   RN004: criado_em ï¿½ gerado pelo SQL Server com GETDATE().
    RN009: excluido_em implementa soft delete.
-   confirmado permite criar pedido + itens atomicamente antes de congelá-lo.
+   confirmado permite criar pedido + itens atomicamente antes de congelï¿½-lo.
    ============================================================ */
 CREATE TABLE dbo.Pedidos (
     id_pedido       BIGINT IDENTITY(1,1) NOT NULL,
@@ -305,8 +305,8 @@ CREATE TABLE dbo.Pedidos (
 GO
 
 /*
-   ON DELETE NO ACTION em Mesa, Status e Usuário preserva o histórico do pedido (RN009).
-   Índices suportam fila por chegada e filtro por status (RN004/RN005).
+   ON DELETE NO ACTION em Mesa, Status e Usuï¿½rio preserva o histï¿½rico do pedido (RN009).
+   ï¿½ndices suportam fila por chegada e filtro por status (RN004/RN005).
 */
 CREATE INDEX IX_Pedidos_CriadoEm ON dbo.Pedidos(criado_em, id_pedido);
 CREATE INDEX IX_Pedidos_Status_CriadoEm ON dbo.Pedidos(status_id, criado_em, id_pedido);
@@ -314,9 +314,9 @@ CREATE INDEX IX_Pedidos_Mesa ON dbo.Pedidos(mesa_id, criado_em);
 GO
 
 /* ============================================================
-   RN003/RNF005 - Itens são separados do cabeçalho do pedido.
-   preco_unitario é snapshot: alteração futura do preço do produto
-   não modifica pedidos antigos.
+   RN003/RNF005 - Itens sï¿½o separados do cabeï¿½alho do pedido.
+   preco_unitario ï¿½ snapshot: alteraï¿½ï¿½o futura do preï¿½o do produto
+   nï¿½o modifica pedidos antigos.
    ============================================================ */
 CREATE TABLE dbo.Itens_Pedido (
     id_item          BIGINT IDENTITY(1,1) NOT NULL,
@@ -340,14 +340,14 @@ CREATE TABLE dbo.Itens_Pedido (
 );
 GO
 
-/* ON DELETE NO ACTION em Pedido/Produto preserva histórico (RN003/RN009). */
+/* ON DELETE NO ACTION em Pedido/Produto preserva histï¿½rico (RN003/RN009). */
 CREATE INDEX IX_Itens_Pedido_Pedido ON dbo.Itens_Pedido(pedido_id);
 CREATE INDEX IX_Itens_Pedido_Produto ON dbo.Itens_Pedido(produto_id);
 GO
 
 /* ============================================================
-   RN003 - Depois da confirmação, itens ficam imutáveis no banco.
-   A regra vale para INSERT, UPDATE e DELETE, evitando alterações diretas.
+   RN003 - Depois da confirmaï¿½ï¿½o, itens ficam imutï¿½veis no banco.
+   A regra vale para INSERT, UPDATE e DELETE, evitando alteraï¿½ï¿½es diretas.
    ============================================================ */
 CREATE TRIGGER dbo.TR_Itens_Pedido_ImutavelAposConfirmacao
 ON dbo.Itens_Pedido
@@ -369,7 +369,7 @@ BEGIN
         WHERE p.confirmado = 1
     )
     BEGIN
-        RAISERROR(N'RN003: itens de pedido confirmado são imutáveis.', 16, 1);
+        RAISERROR(N'RN003: itens de pedido confirmado sï¿½o imutï¿½veis.', 16, 1);
         ROLLBACK TRANSACTION;
         RETURN;
     END;
@@ -377,8 +377,8 @@ END;
 GO
 
 /*
-   Mantém valor_total consistente durante a montagem de pedidos ainda não confirmados.
-   Se a operação for inválida em pedido confirmado, o trigger RN003 faz rollback da instrução inteira.
+   Mantï¿½m valor_total consistente durante a montagem de pedidos ainda nï¿½o confirmados.
+   Se a operaï¿½ï¿½o for invï¿½lida em pedido confirmado, o trigger RN003 faz rollback da instruï¿½ï¿½o inteira.
 */
 CREATE TRIGGER dbo.TR_Itens_Pedido_RecalculaTotal
 ON dbo.Itens_Pedido
@@ -407,7 +407,7 @@ END;
 GO
 
 /* ============================================================
-   RN005 - Histórico das mudanças de status.
+   RN005 - Histï¿½rico das mudanï¿½as de status.
    ============================================================ */
 CREATE TABLE dbo.Historico_Status_Pedido (
     id_historico     BIGINT IDENTITY(1,1) NOT NULL,
@@ -429,15 +429,15 @@ CREATE TABLE dbo.Historico_Status_Pedido (
 );
 GO
 
-/* ON DELETE NO ACTION preserva a trilha histórica de status (RN005/RN009). */
+/* ON DELETE NO ACTION preserva a trilha histï¿½rica de status (RN005/RN009). */
 CREATE INDEX IX_Historico_Status_Pedido ON dbo.Historico_Status_Pedido(pedido_id, alterado_em, id_historico);
 GO
 
 /* ============================================================
    RN005 - Garante no banco:
    1) novo pedido inicia em Recebido;
-   2) mudanças respeitam Transicoes_Status_Pedido;
-   3) cada status é registrado no histórico.
+   2) mudanï¿½as respeitam Transicoes_Status_Pedido;
+   3) cada status ï¿½ registrado no histï¿½rico.
    ============================================================ */
 CREATE TRIGGER dbo.TR_Pedidos_ValidaEHistorizaStatus
 ON dbo.Pedidos
@@ -461,7 +461,7 @@ BEGIN
         RETURN;
     END;
 
-    /* Atualização de status precisa existir na tabela de transições válidas. */
+    /* Atualizaï¿½ï¿½o de status precisa existir na tabela de transiï¿½ï¿½es vï¿½lidas. */
     IF EXISTS (
         SELECT 1
         FROM inserted i
@@ -473,19 +473,19 @@ BEGIN
           AND t.status_origem_id IS NULL
     )
     BEGIN
-        RAISERROR(N'RN005: transição de status inválida.', 16, 1);
+        RAISERROR(N'RN005: transiï¿½ï¿½o de status invï¿½lida.', 16, 1);
         ROLLBACK TRANSACTION;
         RETURN;
     END;
 
-    /* Histórico do status inicial. */
+    /* Histï¿½rico do status inicial. */
     INSERT INTO dbo.Historico_Status_Pedido (pedido_id, status_id, alterado_por, alterado_em)
     SELECT i.id_pedido, i.status_id, i.alterado_por, i.criado_em
     FROM inserted i
     LEFT JOIN deleted d ON d.id_pedido = i.id_pedido
     WHERE d.id_pedido IS NULL;
 
-    /* Histórico de cada mudança válida de status. */
+    /* Histï¿½rico de cada mudanï¿½a vï¿½lida de status. */
     INSERT INTO dbo.Historico_Status_Pedido (pedido_id, status_id, alterado_por, alterado_em)
     SELECT i.id_pedido, i.status_id, i.alterado_por, GETDATE()
     FROM inserted i
@@ -495,8 +495,8 @@ END;
 GO
 
 /* ============================================================
-   RN009 - DELETE físico de pedido é proibido.
-   Um DELETE solicitado pela aplicação vira soft delete.
+   RN009 - DELETE fï¿½sico de pedido ï¿½ proibido.
+   Um DELETE solicitado pela aplicaï¿½ï¿½o vira soft delete.
    ============================================================ */
 CREATE TRIGGER dbo.TR_Pedidos_SoftDelete
 ON dbo.Pedidos
@@ -514,9 +514,9 @@ END;
 GO
 
 /* ============================================================
-   Integração com o PaymentService existente no backend.
+   Integraï¿½ï¿½o com o PaymentService existente no backend.
    Status financeiro fica separado do status operacional RN005.
-   Assim PAGO/CANCELADO não corrompe o fluxo da cozinha.
+   Assim PAGO/CANCELADO nï¿½o corrompe o fluxo da cozinha.
    ============================================================ */
 CREATE TABLE dbo.Pagamentos (
     id_pagamento     BIGINT IDENTITY(1,1) NOT NULL,
@@ -539,7 +539,7 @@ CREATE TABLE dbo.Pagamentos (
 );
 GO
 
-/* ON DELETE NO ACTION em Pagamentos preserva histórico financeiro do pedido. */
+/* ON DELETE NO ACTION em Pagamentos preserva histï¿½rico financeiro do pedido. */
 CREATE INDEX IX_Pagamentos_Pedido ON dbo.Pagamentos(pedido_id, criado_em);
 CREATE UNIQUE INDEX UX_Pagamentos_ReferenciaGateway
 ON dbo.Pagamentos(referencia_gateway)
@@ -548,7 +548,7 @@ GO
 
 /* ============================================================
    RNF005 - Tipo de tabela usado para enviar todos os itens de uma vez.
-   PRIMARY KEY impede o mesmo produto duplicado na mesma requisição.
+   PRIMARY KEY impede o mesmo produto duplicado na mesma requisiï¿½ï¿½o.
    ============================================================ */
 CREATE TYPE dbo.TipoItemPedido AS TABLE (
     produto_id  BIGINT NOT NULL PRIMARY KEY, -- RNF005
@@ -558,9 +558,9 @@ GO
 
 /* ============================================================
    RNF005 + RN003 + RN004 + RN007:
-   Cria cabeçalho, itens, baixa estoque, calcula total e confirma o
-   pedido dentro de UMA transação atômica.
-   UPDLOCK/HOLDLOCK evita duas vendas simultâneas do mesmo estoque.
+   Cria cabeï¿½alho, itens, baixa estoque, calcula total e confirma o
+   pedido dentro de UMA transaï¿½ï¿½o atï¿½mica.
+   UPDLOCK/HOLDLOCK evita duas vendas simultï¿½neas do mesmo estoque.
    ============================================================ */
 CREATE PROCEDURE dbo.sp_CriarPedido
     @mesa_id      BIGINT,
@@ -590,7 +590,7 @@ BEGIN
             RAISERROR(N'Mesa inexistente ou inativa.', 16, 1);
         END;
 
-        /* Bloqueia as linhas dos produtos durante validação para evitar overselling. */
+        /* Bloqueia as linhas dos produtos durante validaï¿½ï¿½o para evitar overselling. */
         IF EXISTS (
             SELECT 1
             FROM @itens i
@@ -602,7 +602,7 @@ BEGIN
                OR p.estoque < i.quantidade
         )
         BEGIN
-            RAISERROR(N'Existe produto inexistente, indisponível ou sem estoque suficiente.', 16, 1);
+            RAISERROR(N'Existe produto inexistente, indisponï¿½vel ou sem estoque suficiente.', 16, 1);
         END;
 
         DECLARE @status_recebido BIGINT;
@@ -612,10 +612,10 @@ BEGIN
 
         IF @status_recebido IS NULL
         BEGIN
-            RAISERROR(N'Status inicial Recebido não está configurado.', 16, 1);
+            RAISERROR(N'Status inicial Recebido nï¿½o estï¿½ configurado.', 16, 1);
         END;
 
-        /* Pedido nasce não confirmado apenas durante esta transação. */
+        /* Pedido nasce nï¿½o confirmado apenas durante esta transaï¿½ï¿½o. */
         INSERT INTO dbo.Pedidos (
             mesa_id,
             status_id,
@@ -633,13 +633,13 @@ BEGIN
 
         SET @id_pedido = SCOPE_IDENTITY();
 
-        /* Snapshot do preço atual do produto no momento da compra. */
+        /* Snapshot do preï¿½o atual do produto no momento da compra. */
         INSERT INTO dbo.Itens_Pedido (pedido_id, produto_id, quantidade, preco_unitario)
         SELECT @id_pedido, p.id_produto, i.quantidade, p.preco
         FROM @itens i
         INNER JOIN dbo.Produtos p ON p.id_produto = i.produto_id;
 
-        /* Baixa de estoque na mesma transação. */
+        /* Baixa de estoque na mesma transaï¿½ï¿½o. */
         UPDATE p
            SET p.estoque = p.estoque - i.quantidade,
                p.alterado_por = COALESCE(@criado_por, p.alterado_por),
@@ -682,7 +682,7 @@ END;
 GO
 
 /* ============================================================
-   RN005 - Procedure segura para avançar status.
+   RN005 - Procedure segura para avanï¿½ar status.
    A trigger continua sendo a autoridade final de integridade.
    ============================================================ */
 CREATE PROCEDURE dbo.sp_AvancarStatusPedido
@@ -702,7 +702,7 @@ BEGIN
 
     IF @novo_status_id IS NULL
     BEGIN
-        RAISERROR(N'Status informado não existe.', 16, 1);
+        RAISERROR(N'Status informado nï¿½o existe.', 16, 1);
         RETURN;
     END;
 
@@ -715,14 +715,14 @@ BEGIN
 
     IF @@ROWCOUNT = 0
     BEGIN
-        RAISERROR(N'Pedido não encontrado ou removido logicamente.', 16, 1);
+        RAISERROR(N'Pedido nï¿½o encontrado ou removido logicamente.', 16, 1);
         RETURN;
     END;
 END;
 GO
 
 /* ============================================================
-   Views úteis para o backend e dashboards.
+   Views ï¿½teis para o backend e dashboards.
    Elas ocultam registros removidos logicamente.
    ============================================================ */
 CREATE VIEW dbo.vw_Produtos_Ativos
@@ -765,14 +765,14 @@ AS
 GO
 
 /* ============================================================
-   DADOS BÁSICOS OPCIONAIS PARA PRIMEIROS TESTES
-   (sem criar usuário/senha fictícios).
+   DADOS Bï¿½SICOS OPCIONAIS PARA PRIMEIROS TESTES
+   (sem criar usuï¿½rio/senha fictï¿½cios).
    ============================================================ */
 INSERT INTO dbo.Categorias (nome, descricao)
 VALUES
     (N'Pratos', N'Pratos principais'),
-    (N'Bebidas', N'Bebidas do cardápio'),
-    (N'Sobremesas', N'Sobremesas do cardápio');
+    (N'Bebidas', N'Bebidas do cardï¿½pio'),
+    (N'Sobremesas', N'Sobremesas do cardï¿½pio');
 GO
 
 /*
