@@ -1,6 +1,7 @@
 package com.itb.service;
 
 import com.itb.dto.PaymentRequest;
+import com.itb.exception.ResourceNotFoundException;
 import com.itb.model.Order;
 import com.itb.model.Payment;
 import com.itb.repository.OrderRepository;
@@ -32,7 +33,7 @@ public class PaymentService {
                         existingOrder.getDeletedAt() == null
                 )
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "Pedido não encontrado"
                         )
                 );
@@ -47,18 +48,14 @@ public class PaymentService {
 
         payment.setOrder(order);
 
-        // O valor vem do pedido, e não do frontend.
-        payment.setAmount(order.getTotalValue());
+        payment.setAmount(
+                order.getTotalValue()
+        );
 
-        payment.setMethod(request.method());
+        payment.setMethod(
+                request.method()
+        );
 
-        /*
-         * Por enquanto o TableHub não está conectado
-         * a um gateway real.
-         *
-         * Portanto estamos simulando a aprovação
-         * do pagamento.
-         */
         payment.setStatus("PAGO");
 
         payment.setGatewayReference(
@@ -85,7 +82,7 @@ public class PaymentService {
                         existingOrder.getDeletedAt() == null
                 )
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
+                        new ResourceNotFoundException(
                                 "Pedido não encontrado"
                         )
                 );
@@ -98,13 +95,17 @@ public class PaymentService {
                         )
                 );
 
-        if ("CANCELADO".equalsIgnoreCase(payment.getStatus())) {
+        if ("CANCELADO".equalsIgnoreCase(
+                payment.getStatus()
+        )) {
             throw new IllegalStateException(
                     "O pagamento já está cancelado"
             );
         }
 
-        if (!"PAGO".equalsIgnoreCase(payment.getStatus())) {
+        if (!"PAGO".equalsIgnoreCase(
+                payment.getStatus()
+        )) {
             throw new IllegalStateException(
                     "Somente pagamentos pagos podem ser cancelados"
             );

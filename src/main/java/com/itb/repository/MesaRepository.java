@@ -10,4 +10,14 @@ public interface MesaRepository extends JpaRepository<Mesa, Long> {
     boolean existsByNumber(Integer number);
 
     boolean existsByQrCode(String qrCode);
+
+    boolean existsByNumberAndIdNot(
+            Integer number,
+            Long id
+    );
+
+    boolean existsByQrCodeAndIdNot(
+            String qrCode,
+            Long id
+    );
 }
