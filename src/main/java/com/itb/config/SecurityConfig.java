@@ -59,39 +59,77 @@ public class SecurityConfig {
                                 SessionCreationPolicy.STATELESS
                         )
                 )
+.authorizeHttpRequests(auth -> auth
 
-                .authorizeHttpRequests(auth -> auth
+        .requestMatchers(
+                HttpMethod.POST,
+                "/api/auth/login"
+        ).permitAll()
 
-                        // Login público
-                        .requestMatchers(
-                                HttpMethod.POST,
-                                "/api/auth/login"
-                        ).permitAll()
+        // TEMPORÁRIO: permite criar o primeiro usuário
+        .requestMatchers(
+                HttpMethod.POST,
+                "/api/usuarios"
+        ).permitAll()
 
-                        // WebSocket
-                        .requestMatchers(
-                                "/ws/**"
-                        ).permitAll()
+        .requestMatchers(
+                "/ws/**"
+        ).permitAll()
+                  .requestMatchers(
+                "/api/usuarios/**"
+      ).hasRole("ADMINISTRADOR")
 
-                        // Usuários agora exigem JWT
-                        .requestMatchers(
-                                "/api/usuarios/**"
-                        ).authenticated()
 
-                        /*
-                         * TEMPORÁRIO.
-                         *
-                         * As outras rotas continuam públicas
-                         * enquanto definimos quais são:
-                         *
-                         * cliente
-                         * garçom
-                         * cozinha
-                         * administrador
-                         */
-                        .anyRequest().permitAll()
-                )
+       // Produtos podem ser visualizados pelo cliente
+        .requestMatchers(
+                HttpMethod.GET,
+                "/api/v1/produtos/**"
+        ).permitAll()
 
+        // Criar produto: administrador
+        .requestMatchers(
+                HttpMethod.POST,
+                "/api/v1/produtos/**"
+        ).hasRole("ADMINISTRADOR")
+
+        // Editar produto: administrador
+        .requestMatchers(
+                HttpMethod.PUT,
+                "/api/v1/produtos/**"
+        ).hasRole("ADMINISTRADOR")
+
+        // Excluir produto: administrador
+        .requestMatchers(
+                HttpMethod.DELETE,
+                "/api/v1/produtos/**"
+        ).hasRole("ADMINISTRADOR")
+
+        // Mesas - leitura pública temporariamente
+        .requestMatchers(
+                HttpMethod.GET,
+                "/api/mesas/**"
+        ).permitAll()
+
+        // Criar mesa - somente administrador
+        .requestMatchers(
+                HttpMethod.POST,
+                "/api/mesas/**"
+        ).hasRole("ADMINISTRADOR")
+
+        // Editar mesa - somente administrador
+        .requestMatchers(
+                HttpMethod.PUT,
+                "/api/mesas/**"
+        ).hasRole("ADMINISTRADOR")
+
+        // Desativar mesa - somente administrador
+        .requestMatchers(
+                HttpMethod.DELETE,
+                "/api/mesas/**"
+        ).hasRole("ADMINISTRADOR")
+
+        .anyRequest().permitAll()
+)
                 .addFilterBefore(
                         jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class
