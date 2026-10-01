@@ -159,10 +159,14 @@ public class DashboardService {
                 GROUP BY DATEPART(HOUR, p.criado_em)
                 ORDER BY hora
                 """,
-                rs -> movimentoMap.put(
-                        rs.getInt("hora"),
-                        rs.getLong("quantidade")
-                )
+                (rs, rowNum) -> {
+                    movimentoMap.put(
+                            rs.getInt("hora"),
+                            rs.getLong("quantidade")
+                    );
+
+                    return rs.getInt("hora");
+                }
         );
 
         List<DashboardResumoResponse.MovimentoHora> movimentoPorHora =
