@@ -3,6 +3,8 @@ package com.itb.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itb.dto.PushSubscriptionRequest;
+import com.itb.dto.StaffPushSubscriptionRequest;
+import com.itb.dto.AtendimentoResponse;
 import com.itb.model.Order;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
@@ -84,6 +86,7 @@ public class PushNotificationService {
                        ativo = 1,
                        alterado_em = SYSUTCDATETIME()
                  WHERE endpoint = ?
+                   AND canal = 'PEDIDO'
                 """,
                 request.pedidoId(),
                 request.keys().p256dh(),
@@ -95,8 +98,8 @@ public class PushNotificationService {
             jdbcTemplate.update(
                     """
                     INSERT INTO dbo.Push_Subscriptions
-                        (pedido_id, endpoint, p256dh, auth, ativo)
-                    VALUES (?, ?, ?, ?, 1)
+                        (pedido_id, canal, endpoint, p256dh, auth, ativo)
+                    VALUES (?, 'PEDIDO', ?, ?, ?, 1)
                     """,
                     request.pedidoId(),
                     request.endpoint(),
@@ -104,6 +107,58 @@ public class PushNotificationService {
                     request.keys().auth()
             );
         }
+    }
+
+    public void registerStaff(StaffPushSubscriptionRequest request) {
+        int updated = jdbcTemplate.update(
+                """
+                UPDATE dbo.Push_Subscriptions
+                   SET pedido_id = NULL,
+                       p256dh = ?,
+                       auth = ?,
+                       ativo = 1,
+                       alterado_em = SYSUTCDATETIME()
+                 WHERE endpoint = ?
+                   AND canal = 'EQUIPE'
+                """,
+                request.keys().p256dh(),
+                request.keys().auth(),
+                request.endpoint()
+        );
+
+        if (updated == 0) {
+            jdbcTemplate.update(
+                    """
+                    INSERT INTO dbo.Push_Subscriptions
+                        (pedido_id, canal, endpoint, p256dh, auth, ativo)
+                    VALUES (NULL, 'EQUIPE', ?, ?, ?, 1)
+                    """,
+                    request.endpoint(),
+                    request.keys().p256dh(),
+                    request.keys().auth()
+            );
+        }
+    }
+
+    public void notifyStaffAtendimento(AtendimentoResponse atendimento) {
+        if (atendimento == null || atendimento.id() == null || atendimento.mesa() == null) {
+            return;
+        }
+
+        String mesa = String.format("%02d", atendimento.mesa());
+        String title = "CONTA".equalsIgnoreCase(atendimento.tipo())
+                ? "Mesa " + mesa + " solicitou a conta"
+                : "Mesa " + mesa + " chamou o garçom";
+
+        String detalhe = atendimento.detalhe() == null || atendimento.detalhe().isBlank()
+                ? "Nova solicitação de atendimento."
+                : atendimento.detalhe();
+
+        sendToStaff(
+                title,
+                detalhe,
+                "atendimento-" + atendimento.id()
+        );
     }
 
     public void notifyOrderStatus(Order order) {
@@ -184,6 +239,7 @@ public class PushNotificationService {
                 SELECT id_push, endpoint, p256dh, auth
                   FROM dbo.Push_Subscriptions
                  WHERE pedido_id = ?
+                   AND canal = 'PEDIDO'
                    AND ativo = 1
                 """,
                 (rs, rowNum) -> new SubscriptionRow(
@@ -193,6 +249,51 @@ public class PushNotificationService {
                         rs.getString("auth")
                 ),
                 order.getId()
+        );
+
+        for (SubscriptionRow subscription : subscriptions) {
+            send(subscription, payload);
+        }
+    }
+
+    private void sendToStaff(
+            String title,
+            String body,
+            String tag
+    ) {
+        if (!isConfigured()) {
+            log.debug("Web Push não configurado; notificação da equipe ignorada.");
+            return;
+        }
+
+        String payload;
+        try {
+            payload = objectMapper.writeValueAsString(
+                    Map.of(
+                            "title", title,
+                            "body", body,
+                            "url", "/atendimento",
+                            "tag", tag
+                    )
+            );
+        } catch (JsonProcessingException ex) {
+            log.warn("Não foi possível montar o payload da notificação da equipe.", ex);
+            return;
+        }
+
+        List<SubscriptionRow> subscriptions = jdbcTemplate.query(
+                """
+                SELECT id_push, endpoint, p256dh, auth
+                  FROM dbo.Push_Subscriptions
+                 WHERE canal = 'EQUIPE'
+                   AND ativo = 1
+                """,
+                (rs, rowNum) -> new SubscriptionRow(
+                        rs.getLong("id_push"),
+                        rs.getString("endpoint"),
+                        rs.getString("p256dh"),
+                        rs.getString("auth")
+                )
         );
 
         for (SubscriptionRow subscription : subscriptions) {

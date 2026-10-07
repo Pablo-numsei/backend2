@@ -1,6 +1,7 @@
 package com.itb.controller;
 
 import com.itb.dto.PushSubscriptionRequest;
+import com.itb.dto.StaffPushSubscriptionRequest;
 import com.itb.service.PushNotificationService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -42,6 +43,14 @@ public class PushNotificationController {
             @Valid @RequestBody PushSubscriptionRequest request
     ) {
         pushNotificationService.register(request);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/staff-subscriptions")
+    public ResponseEntity<Void> subscribeStaff(
+            @Valid @RequestBody StaffPushSubscriptionRequest request
+    ) {
+        pushNotificationService.registerStaff(request);
         return ResponseEntity.noContent().build();
     }
 }

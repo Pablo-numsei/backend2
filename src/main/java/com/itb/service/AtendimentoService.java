@@ -6,16 +6,20 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Timestamp;
 import java.util.List;
 
 @Service
 public class AtendimentoService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final PushNotificationService pushNotificationService;
 
-    public AtendimentoService(JdbcTemplate jdbcTemplate) {
+    public AtendimentoService(
+            JdbcTemplate jdbcTemplate,
+            PushNotificationService pushNotificationService
+    ) {
         this.jdbcTemplate = jdbcTemplate;
+        this.pushNotificationService = pushNotificationService;
     }
 
     public List<AtendimentoResponse> listar() {
@@ -61,7 +65,7 @@ public class AtendimentoService {
 
         if (request.pedidoId() != null) {
             Integer pedidoExiste = jdbcTemplate.queryForObject(
-                    "SELECT COUNT(*) FROM dbo.Pedidos WHERE id_pedido = ? AND mesa_id = ? AND deletado_em IS NULL",
+                    "SELECT COUNT(*) FROM dbo.Pedidos WHERE id_pedido = ? AND mesa_id = ? AND excluido_em IS NULL",
                     Integer.class,
                     request.pedidoId(),
                     request.mesaId()
@@ -85,7 +89,10 @@ public class AtendimentoService {
                 request.detalhe()
         );
 
-        return buscarPorId(id);
+        AtendimentoResponse atendimento = buscarPorId(id);
+        pushNotificationService.notifyStaffAtendimento(atendimento);
+
+        return atendimento;
     }
 
     @Transactional
