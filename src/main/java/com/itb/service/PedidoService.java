@@ -30,6 +30,7 @@ public class PedidoService {
     private final OrderRepository orderRepository;
     private final StatusPedidoRepository statusPedidoRepository;
     private final SocketService socketService;
+    private final PushNotificationService pushNotificationService;
 
     // =========================
     // CRIAR PEDIDO
@@ -267,6 +268,10 @@ try {
 
         // Envia a atualização em tempo real.
         socketService.notifyOrderUpdate(
+                pedidoAtualizado
+        );
+
+        pushNotificationService.notifyOrderStatus(
                 pedidoAtualizado
         );
 

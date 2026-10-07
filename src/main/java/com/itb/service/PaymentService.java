@@ -21,6 +21,7 @@ public class PaymentService {
     private final OrderRepository orderRepository;
     private final PaymentRepository paymentRepository;
     private final SocketService socketService;
+    private final PushNotificationService pushNotificationService;
 
     @Transactional
     public Payment processPayment(
@@ -70,6 +71,7 @@ public class PaymentService {
                 paymentRepository.save(payment);
 
         socketService.notifyOrderUpdate(order);
+        pushNotificationService.notifyPaymentConfirmed(order);
 
         return savedPayment;
     }
