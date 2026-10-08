@@ -141,62 +141,85 @@ public class PushNotificationService {
     }
 
     public void notifyStaffAtendimento(AtendimentoResponse atendimento) {
-        if (atendimento == null || atendimento.id() == null || atendimento.mesa() == null) {
-            return;
+        try {
+            if (atendimento == null || atendimento.id() == null || atendimento.mesa() == null) {
+                return;
+            }
+
+            String mesa = String.format("%02d", atendimento.mesa());
+            String title = "CONTA".equalsIgnoreCase(atendimento.tipo())
+                    ? "Mesa " + mesa + " solicitou a conta"
+                    : "Mesa " + mesa + " chamou o garçom";
+
+            String detalhe = atendimento.detalhe() == null || atendimento.detalhe().isBlank()
+                    ? "Nova solicitação de atendimento."
+                    : atendimento.detalhe();
+
+            sendToStaff(
+                    title,
+                    detalhe,
+                    "atendimento-" + atendimento.id()
+            );
+        } catch (Exception ex) {
+            log.error(
+                    "Falha no Web Push da equipe. O atendimento foi mantido normalmente.",
+                    ex
+            );
         }
-
-        String mesa = String.format("%02d", atendimento.mesa());
-        String title = "CONTA".equalsIgnoreCase(atendimento.tipo())
-                ? "Mesa " + mesa + " solicitou a conta"
-                : "Mesa " + mesa + " chamou o garçom";
-
-        String detalhe = atendimento.detalhe() == null || atendimento.detalhe().isBlank()
-                ? "Nova solicitação de atendimento."
-                : atendimento.detalhe();
-
-        sendToStaff(
-                title,
-                detalhe,
-                "atendimento-" + atendimento.id()
-        );
     }
 
     public void notifyOrderStatus(Order order) {
-        if (order == null || order.getId() == null || order.getStatus() == null) {
-            return;
+        try {
+            if (order == null || order.getId() == null || order.getStatus() == null) {
+                return;
+            }
+
+            String status = order.getStatus().getName();
+            String body = switch (status) {
+                case "Em preparo" ->
+                        "A cozinha começou a preparar o seu pedido #" + order.getId() + ".";
+                case "Pronto" ->
+                        "Seu pedido #" + order.getId() + " está pronto.";
+                case "Entregue" ->
+                        "Seu pedido #" + order.getId() + " foi entregue.";
+                default ->
+                        "O pedido #" + order.getId() + " agora está com status: " + status + ".";
+            };
+
+            sendToOrder(
+                    order,
+                    "Atualização do pedido",
+                    body,
+                    "pedido-" + order.getId()
+            );
+        } catch (Exception ex) {
+            log.error(
+                    "Falha no Web Push do pedido {}. O status foi mantido normalmente.",
+                    order != null ? order.getId() : null,
+                    ex
+            );
         }
-
-        String status = order.getStatus().getName();
-        String body = switch (status) {
-            case "Em preparo" ->
-                    "A cozinha começou a preparar o seu pedido #" + order.getId() + ".";
-            case "Pronto" ->
-                    "Seu pedido #" + order.getId() + " está pronto.";
-            case "Entregue" ->
-                    "Seu pedido #" + order.getId() + " foi entregue.";
-            default ->
-                    "O pedido #" + order.getId() + " agora está com status: " + status + ".";
-        };
-
-        sendToOrder(
-                order,
-                "Atualização do pedido",
-                body,
-                "pedido-" + order.getId()
-        );
     }
 
     public void notifyPaymentConfirmed(Order order) {
-        if (order == null || order.getId() == null) {
-            return;
-        }
+        try {
+            if (order == null || order.getId() == null) {
+                return;
+            }
 
-        sendToOrder(
-                order,
-                "Pagamento registrado",
-                "O pagamento do pedido #" + order.getId() + " foi registrado no TableHub.",
-                "pagamento-" + order.getId()
-        );
+            sendToOrder(
+                    order,
+                    "Pagamento registrado",
+                    "O pagamento do pedido #" + order.getId() + " foi registrado no TableHub.",
+                    "pagamento-" + order.getId()
+            );
+        } catch (Exception ex) {
+            log.error(
+                    "Falha no Web Push do pagamento do pedido {}. O pagamento foi mantido normalmente.",
+                    order != null ? order.getId() : null,
+                    ex
+            );
+        }
     }
 
     private void sendToOrder(
