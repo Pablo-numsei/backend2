@@ -108,6 +108,13 @@
             <version>1.86</version>
         </dependency>
 
+        <!-- Necessário em compile para org.apache.http.HttpResponse usado pelo serviço Web Push -->
+        <dependency>
+            <groupId>org.apache.httpcomponents</groupId>
+            <artifactId>httpasyncclient</artifactId>
+            <version>4.1.5</version>
+        </dependency>
+
         <!-- Testes -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
