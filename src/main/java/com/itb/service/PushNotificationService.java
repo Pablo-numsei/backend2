@@ -216,9 +216,9 @@ public class PushNotificationService {
 
             sendToOrder(
                     order,
-                    "Pagamento registrado",
-                    "O pagamento do pedido #" + order.getId() + " foi registrado no TableHub.",
-                    "pagamento-" + order.getId()
+                    "Pagamento confirmado",
+                    "O pagamento do pedido #" + order.getId() + " foi concluído com sucesso.",
+                    "pagamento-confirmado-" + order.getId()
             );
         } catch (Exception ex) {
             log.error(
