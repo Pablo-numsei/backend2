@@ -54,7 +54,7 @@ public class AtendimentoService {
         String tipo = normalizarTipo(request.tipo());
 
         Integer mesaExiste = jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM dbo.Mesas WHERE id_mesa = ? AND ativo = 1",
+                "SELECT COUNT(*) FROM dbo.Mesas WHERE id_mesa = ? AND ativa = 1",
                 Integer.class,
                 request.mesaId()
         );
