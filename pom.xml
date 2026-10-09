@@ -115,6 +115,13 @@
             <version>4.1.5</version>
         </dependency>
 
+        <!-- JWT VAPID utilizado internamente pela biblioteca Web Push -->
+        <dependency>
+            <groupId>org.bitbucket.b_c</groupId>
+            <artifactId>jose4j</artifactId>
+            <version>0.9.6</version>
+        </dependency>
+
         <!-- Testes -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
