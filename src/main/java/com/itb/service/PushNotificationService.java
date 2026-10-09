@@ -186,11 +186,18 @@ public class PushNotificationService {
                         "O pedido #" + order.getId() + " agora está com status: " + status + ".";
             };
 
+            String statusTag = switch (status) {
+                case "Em preparo" -> "em-preparo";
+                case "Pronto" -> "pronto";
+                case "Entregue" -> "entregue";
+                default -> "atualizado";
+            };
+
             sendToOrder(
                     order,
                     "Atualização do pedido",
                     body,
-                    "pedido-" + order.getId()
+                    "pedido-" + order.getId() + "-" + statusTag
             );
         } catch (Exception ex) {
             log.error(
