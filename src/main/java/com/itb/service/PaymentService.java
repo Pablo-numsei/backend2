@@ -148,12 +148,17 @@ public class PaymentService {
     }
 
     private void notifyAfterCommit(Order order, boolean confirmed) {
+        if (confirmed) {
+            try {
+                // PushNotificationService registers its own afterCommit callback.
+                pushNotificationService.notifyPaymentConfirmed(order);
+            } catch (Exception ex) {
+                log.warn("Falha ao agendar notificação do pagamento do pedido {}", order.getId(), ex);
+            }
+        }
         Runnable notify = () -> {
             try {
                 socketService.notifyOrderUpdate(order);
-                if (confirmed) {
-                    pushNotificationService.notifyPaymentConfirmed(order);
-                }
             } catch (Exception ex) {
                 log.warn("Falha ao notificar pagamento do pedido {} após confirmação da transação", order.getId(), ex);
             }

@@ -116,7 +116,7 @@ class PaymentServiceTest {
     }
 
     @Test
-    void manualConfirmationPublishesSuccessOnlyAfterCommit() {
+    void manualConfirmationSchedulesPushBeforeCommitAndPublishesSocketAfterCommit() {
         Payment pending = payment("PENDENTE");
         stubLockedPayments(List.of(pending));
         stubSave();
@@ -126,10 +126,11 @@ class PaymentServiceTest {
 
         assertEquals("PAGO", paid.getStatus());
         assertNotNull(paid.getProcessedAt());
-        verifyNoInteractions(socketService, pushNotificationService);
+        verifyNoInteractions(socketService);
+        verify(pushNotificationService).notifyPaymentConfirmed(order);
         TransactionSynchronizationManager.getSynchronizations().forEach(sync -> sync.afterCommit());
         verify(socketService).notifyOrderUpdate(order);
-        verify(pushNotificationService).notifyPaymentConfirmed(order);
+        verifyNoMoreInteractions(pushNotificationService);
     }
 
     @Test
