@@ -62,6 +62,7 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers("/api/usuarios/**", "/api/perfis/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/api/v1/categorias", "/api/v1/categorias/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/v1/produtos/**", "/api/mesas/**", "/api/status-pedidos", "/api/push/public-key").permitAll()
                         .requestMatchers("/api/v1/produtos/**", "/api/mesas/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/pedidos", "/api/pedidos/status/**").hasAnyRole("ADMINISTRADOR", "GARCOM", "COZINHA")
