@@ -1,11 +1,11 @@
-USE TableHub;
+--USE TableHub;
 GO
 
 SET XACT_ABORT ON;
 GO
 
 /*
-  Cardápio inicial compatível com o frontend TableHub.
+  Cardápio inicial compatível com o frontend table_hub_db.
   - Não apaga produtos existentes.
   - Cria categorias ausentes.
   - Atualiza nome/categoria/descrição/preço dos produtos conhecidos.

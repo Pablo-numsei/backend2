@@ -1,22 +1,22 @@
-USE master;
-GO
 
-IF DB_ID(N'TableHub') IS NULL
+
+
+IF DB_ID(N'table_hub_db') IS NULL
 BEGIN
-    CREATE DATABASE TableHub;
+    CREATE DATABASE table_hub_db;
 END;
 GO
 
-ALTER AUTHORIZATION ON DATABASE::TableHub TO sa;
+ALTER AUTHORIZATION ON DATABASE::table_hub_db TO sa;
 GO
 
 SELECT name
 FROM sys.databases
-WHERE name = 'TableHub';
+WHERE name = 'table_hub_db';
 GO
 
-USE TableHub;
-GO
+
+
 
 SELECT DB_NAME() AS BancoAtual;
 
@@ -28,7 +28,7 @@ SELECT DB_NAME() AS BancoAtual;
     ESTRUTURA DO BANCO (vers�o compat�vel sem THROW)
 
     IMPORTANTE:
-    1) Execute primeiro o arquivo 01_Criar_Banco_TableHub.sql.
+    1) Execute primeiro o arquivo table_hub_db.sql.
     2) Depois execute este arquivo.
     3) Esta vers�o usa RAISERROR em vez de THROW para funcionar em
        ambientes/targets SQL Server mais antigos e evitar os erros
@@ -37,9 +37,9 @@ SELECT DB_NAME() AS BancoAtual;
 
 /* Abra esta consulta j� conectado ao banco TableHub.
    Esta verifica��o evita criar objetos acidentalmente em master. */
-IF DB_NAME() <> N'TableHub'
+IF DB_NAME() <> N'table_hub_db'
 BEGIN
-    RAISERROR(N'Conecte esta consulta ao banco TableHub antes de executar o script.', 16, 1);
+    RAISERROR(N'Conecte esta consulta ao banco table_hub_db antes de executar o script.', 16, 1);
     RETURN;
 END;
 GO

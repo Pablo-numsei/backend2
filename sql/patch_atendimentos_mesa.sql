@@ -1,5 +1,5 @@
-USE TableHub;
-GO
+ --USE TableHub;
+--GO
 
 SET XACT_ABORT ON;
 GO
