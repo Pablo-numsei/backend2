@@ -24,6 +24,8 @@
 
     <properties>
         <java.version>21</java.version>
+        <!-- Patch compatível com a linha atual: corrige CVE-2025-22228 sem migração de major. -->
+        <spring-security.version>6.3.10</spring-security.version>
     </properties>
 
     <dependencies>

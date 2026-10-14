@@ -4,6 +4,7 @@ import com.itb.dto.AtendimentoCreateRequest;
 import com.itb.dto.AtendimentoResponse;
 import com.itb.dto.AtendimentoStatusRequest;
 import com.itb.service.AtendimentoService;
+import com.itb.service.OrderAccessService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -15,9 +16,11 @@ import java.util.List;
 public class AtendimentoController {
 
     private final AtendimentoService atendimentoService;
+    private final OrderAccessService orderAccessService;
 
-    public AtendimentoController(AtendimentoService atendimentoService) {
+    public AtendimentoController(AtendimentoService atendimentoService, OrderAccessService orderAccessService) {
         this.atendimentoService = atendimentoService;
+        this.orderAccessService = orderAccessService;
     }
 
     @GetMapping
@@ -28,8 +31,10 @@ public class AtendimentoController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public AtendimentoResponse criar(
-            @Valid @RequestBody AtendimentoCreateRequest request
+            @Valid @RequestBody AtendimentoCreateRequest request,
+            @RequestHeader(value = "X-Order-Token", required = false) String token
     ) {
+        if (request.pedidoId() != null) orderAccessService.requireAccess(request.pedidoId(), token);
         return atendimentoService.criar(request);
     }
 

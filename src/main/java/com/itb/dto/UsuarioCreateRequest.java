@@ -18,7 +18,7 @@ public record UsuarioCreateRequest(
         String email,
 
         @NotBlank(message = "A senha Ã© obrigatÃ³ria")
-        @Size(min = 6, max = 72, message = "A senha deve ter entre 6 e 72 caracteres")
+        @Size(min = 12, max = 72, message = "A senha deve ter entre 12 e 72 caracteres")
         String senha
 
 ) {

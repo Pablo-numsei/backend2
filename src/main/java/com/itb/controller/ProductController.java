@@ -1,6 +1,7 @@
 package com.itb.controller;
 
 import com.itb.model.Product;
+import com.itb.dto.StockAdjustmentRequest;
 import com.itb.service.ProductService;
 
 import jakarta.validation.Valid;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/v1/produtos")
@@ -70,6 +72,15 @@ public class ProductController {
                 .orElse(
                         ResponseEntity.notFound().build()
                 );
+    }
+
+    @PatchMapping("/{id}/estoque")
+    public ResponseEntity<Product> adjustStock(
+            @PathVariable Long id,
+            @Valid @RequestBody StockAdjustmentRequest request,
+            Principal principal
+    ) {
+        return ResponseEntity.ok(productService.adjustStock(id, request, principal.getName()));
     }
 
     // EXCLUIR / DESATIVAR PRODUTO

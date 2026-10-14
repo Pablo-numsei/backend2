@@ -113,12 +113,13 @@ public class AtendimentoService {
             );
         }
 
-        jdbcTemplate.update("""
+        int updated = jdbcTemplate.update("""
                 UPDATE dbo.Atendimentos_Mesa
                    SET status = ?,
                        atualizado_em = SYSUTCDATETIME()
-                 WHERE id_atendimento = ?
-                """, status, id);
+                 WHERE id_atendimento = ? AND status = ?
+                """, status, id, atual.status());
+        if (updated == 0) throw new IllegalStateException("O atendimento mudou. Atualize a lista e tente novamente.");
 
         return buscarPorId(id);
     }

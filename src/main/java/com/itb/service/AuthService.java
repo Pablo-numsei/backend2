@@ -8,6 +8,9 @@ import com.itb.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.authentication.BadCredentialsException;
+import java.nio.charset.StandardCharsets;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,31 +20,23 @@ public class AuthService {
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final String missingUserHash = new BCryptPasswordEncoder().encode("unregistered-account-timing-check");
 
     public LoginResponse login(LoginRequest request) {
 
-        Usuario usuario = usuarioRepository
-                .findByEmailIgnoreCase(request.email())
-                .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "E-mail ou senha inválidos"
-                        )
-                );
-
-        if (!Boolean.TRUE.equals(usuario.getActive())) {
-            throw new IllegalStateException(
-                    "Usuário inativo"
-            );
+        if (request.senha().getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new BadCredentialsException("E-mail ou senha inválidos.");
         }
+        Usuario usuario = usuarioRepository.findByEmailIgnoreCase(request.email().trim()).orElse(null);
 
         boolean senhaCorreta =
                 passwordEncoder.matches(
                         request.senha(),
-                        usuario.getPasswordHash()
+                        usuario == null ? missingUserHash : usuario.getPasswordHash()
                 );
 
-        if (!senhaCorreta) {
-            throw new IllegalArgumentException(
+        if (!senhaCorreta || usuario == null || !Boolean.TRUE.equals(usuario.getActive())) {
+            throw new BadCredentialsException(
                     "E-mail ou senha inválidos"
             );
         }

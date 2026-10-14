@@ -1,25 +1,33 @@
 package com.itb.service;
 
 import com.itb.exception.ResourceNotFoundException;
+import com.itb.dto.StockAdjustmentRequest;
 import com.itb.model.Category;
 import com.itb.model.Product;
 import com.itb.repository.CategoryRepository;
 import com.itb.repository.ProductRepository;
 
 import lombok.RequiredArgsConstructor;
+import jakarta.persistence.EntityManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class ProductService {
 
+    private static final Logger log = LoggerFactory.getLogger(ProductService.class);
+
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
+    private final EntityManager entityManager;
 
     // =========================
     // LISTAR PRODUTOS ATIVOS
@@ -43,12 +51,22 @@ public class ProductService {
     @Transactional
     public Product save(Product product) {
 
+        if (product.getId() != null) {
+            throw new IllegalArgumentException("O ID do produto é definido pelo servidor");
+        }
+
         Category category =
                 resolveCategory(product);
 
-        product.setCategory(category);
-
-        return productRepository.save(product);
+        Product created = new Product();
+        created.setCategory(category);
+        created.setName(product.getName());
+        created.setDescription(product.getDescription());
+        created.setPrice(product.getPrice());
+        created.setStockQuantity(product.getStockQuantity());
+        Product saved = productRepository.saveAndFlush(created);
+        entityManager.refresh(saved);
+        return saved;
     }
 
     // =========================
@@ -61,8 +79,14 @@ public class ProductService {
     ) {
 
         return productRepository
-                .findByIdAndActiveTrue(id)
+                .findByIdForUpdate(id)
                 .map(existingProduct -> {
+
+                    if (!Objects.equals(existingProduct.getStockQuantity(), product.getStockQuantity())) {
+                        throw new IllegalStateException(
+                                "O estoque mudou ou foi alterado no formulário; atualize os dados e use o ajuste de estoque"
+                        );
+                    }
 
                     Category category =
                             resolveCategory(product);
@@ -83,19 +107,45 @@ public class ProductService {
                             product.getPrice()
                     );
 
-                    existingProduct.setStockQuantity(
-                            product.getStockQuantity()
-                    );
-
                     /*
                      * updatedAt não precisa ser definido aqui.
                      * O @PreUpdate do Product já cuida disso.
                      */
 
-                    return productRepository.save(
+                    Product saved = productRepository.saveAndFlush(
                             existingProduct
                     );
+                    entityManager.refresh(saved);
+                    return saved;
                 });
+    }
+
+    @Transactional
+    public Product adjustStock(Long id, StockAdjustmentRequest request, String actor) {
+        if (request.delta() == null || request.delta() == 0) {
+            throw new IllegalArgumentException("O ajuste de estoque precisa ser diferente de zero");
+        }
+        Product product = productRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Produto não encontrado"));
+        if (!Objects.equals(product.getStockQuantity(), request.expectedStockQuantity())) {
+            throw new IllegalStateException("O estoque foi atualizado por outra operação; atualize os dados antes de ajustar");
+        }
+        int next;
+        try {
+            next = Math.addExact(product.getStockQuantity(), request.delta());
+        } catch (ArithmeticException ex) {
+            throw new IllegalArgumentException("O ajuste excede o limite de estoque permitido");
+        }
+        if (next < 0) {
+            throw new IllegalArgumentException("O ajuste não pode deixar o estoque negativo");
+        }
+        int previous = product.getStockQuantity();
+        product.setStockQuantity(next);
+        Product saved = productRepository.saveAndFlush(product);
+        entityManager.refresh(saved);
+        log.info("Ajuste manual de estoque: produto={}, anterior={}, delta={}, atual={}, operador={}",
+                id, previous, request.delta(), next, actor);
+        return saved;
     }
 
     // =========================
@@ -105,7 +155,7 @@ public class ProductService {
     public boolean delete(Long id) {
 
         Product product = productRepository
-                .findByIdAndActiveTrue(id)
+                .findByIdForUpdate(id)
                 .orElse(null);
 
         if (product == null) {
@@ -120,7 +170,7 @@ public class ProductService {
          */
         product.setActive(false);
 
-        productRepository.save(product);
+        productRepository.saveAndFlush(product);
 
         return true;
     }

@@ -8,18 +8,31 @@ import com.itb.dto.AtendimentoResponse;
 import com.itb.model.Order;
 import nl.martijndwars.webpush.Notification;
 import nl.martijndwars.webpush.PushService;
+import nl.martijndwars.webpush.Encoding;
 import org.apache.http.HttpResponse;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
+import org.apache.http.impl.nio.client.HttpAsyncClients;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import jakarta.annotation.PreDestroy;
 
-import java.security.GeneralSecurityException;
 import java.security.Security;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class PushNotificationService {
@@ -32,16 +45,25 @@ public class PushNotificationService {
     private final String publicKey;
     private final String privateKey;
     private final String subject;
+    private final PushEndpointValidator endpointValidator;
+    private final ThreadPoolExecutor notifications = new ThreadPoolExecutor(
+            2, 2, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(200), runnable -> {
+                Thread worker = new Thread(runnable, "tablehub-push");
+                worker.setDaemon(true);
+                return worker;
+            }, new ThreadPoolExecutor.AbortPolicy());
 
     public PushNotificationService(
             JdbcTemplate jdbcTemplate,
             ObjectMapper objectMapper,
             @Value("${push.vapid.public-key:}") String publicKey,
             @Value("${push.vapid.private-key:}") String privateKey,
-            @Value("${push.vapid.subject:mailto:tablehub@localhost}") String subject
+            @Value("${push.vapid.subject:mailto:tablehub@localhost}") String subject,
+            PushEndpointValidator endpointValidator
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.objectMapper = objectMapper;
+        this.endpointValidator = endpointValidator;
         this.publicKey = publicKey == null ? "" : publicKey.trim();
         this.privateKey = privateKey == null ? "" : privateKey.trim();
         this.subject = subject == null || subject.isBlank()
@@ -61,7 +83,8 @@ public class PushNotificationService {
         return publicKey;
     }
 
-    public void register(PushSubscriptionRequest request) {
+    public synchronized void register(PushSubscriptionRequest request) {
+        validateSubscription(request.endpoint(), request.keys().p256dh(), request.keys().auth());
         Integer pedidoExiste = jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -75,6 +98,14 @@ public class PushNotificationService {
 
         if (pedidoExiste == null || pedidoExiste == 0) {
             throw new IllegalArgumentException("Pedido não encontrado.");
+        }
+
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM dbo.Push_Subscriptions
+                 WHERE pedido_id = ? AND canal = 'PEDIDO' AND ativo = 1 AND endpoint <> ?
+                """, Integer.class, request.pedidoId(), request.endpoint());
+        if (count != null && count >= 5) {
+            throw new IllegalStateException("Limite de dispositivos para este pedido atingido.");
         }
 
         int updated = jdbcTemplate.update(
@@ -109,7 +140,15 @@ public class PushNotificationService {
         }
     }
 
-    public void registerStaff(StaffPushSubscriptionRequest request) {
+    public synchronized void registerStaff(StaffPushSubscriptionRequest request) {
+        validateSubscription(request.endpoint(), request.keys().p256dh(), request.keys().auth());
+        Integer count = jdbcTemplate.queryForObject("""
+                SELECT COUNT(*) FROM dbo.Push_Subscriptions
+                 WHERE canal = 'EQUIPE' AND ativo = 1 AND endpoint <> ?
+                """, Integer.class, request.endpoint());
+        if (count != null && count >= 100) {
+            throw new IllegalStateException("Limite de dispositivos da equipe atingido.");
+        }
         int updated = jdbcTemplate.update(
                 """
                 UPDATE dbo.Push_Subscriptions
@@ -141,6 +180,10 @@ public class PushNotificationService {
     }
 
     public void notifyStaffAtendimento(AtendimentoResponse atendimento) {
+        dispatch(() -> sendStaffAtendimento(atendimento));
+    }
+
+    private void sendStaffAtendimento(AtendimentoResponse atendimento) {
         try {
             if (atendimento == null || atendimento.id() == null || atendimento.mesa() == null) {
                 return;
@@ -169,6 +212,10 @@ public class PushNotificationService {
     }
 
     public void notifyOrderStatus(Order order) {
+        dispatch(() -> sendOrderStatus(order));
+    }
+
+    private void sendOrderStatus(Order order) {
         try {
             if (order == null || order.getId() == null || order.getStatus() == null) {
                 return;
@@ -209,6 +256,10 @@ public class PushNotificationService {
     }
 
     public void notifyPaymentConfirmed(Order order) {
+        dispatch(() -> sendPaymentConfirmed(order));
+    }
+
+    private void sendPaymentConfirmed(Order order) {
         try {
             if (order == null || order.getId() == null) {
                 return;
@@ -266,11 +317,12 @@ public class PushNotificationService {
 
         List<SubscriptionRow> subscriptions = jdbcTemplate.query(
                 """
-                SELECT id_push, endpoint, p256dh, auth
+                SELECT TOP (5) id_push, endpoint, p256dh, auth
                   FROM dbo.Push_Subscriptions
                  WHERE pedido_id = ?
                    AND canal = 'PEDIDO'
                    AND ativo = 1
+                 ORDER BY id_push DESC
                 """,
                 (rs, rowNum) -> new SubscriptionRow(
                         rs.getLong("id_push"),
@@ -313,10 +365,11 @@ public class PushNotificationService {
 
         List<SubscriptionRow> subscriptions = jdbcTemplate.query(
                 """
-                SELECT id_push, endpoint, p256dh, auth
+                SELECT TOP (100) id_push, endpoint, p256dh, auth
                   FROM dbo.Push_Subscriptions
                  WHERE canal = 'EQUIPE'
                    AND ativo = 1
+                 ORDER BY id_push DESC
                 """,
                 (rs, rowNum) -> new SubscriptionRow(
                         rs.getLong("id_push"),
@@ -333,6 +386,8 @@ public class PushNotificationService {
 
     private void send(SubscriptionRow subscription, String payload) {
         try {
+            endpointValidator.validateResolvedDestination(subscription.endpoint());
+            validateSubscription(subscription.endpoint(), subscription.p256dh(), subscription.auth());
             PushService pushService =
                     new PushService(publicKey, privateKey, subject);
 
@@ -343,7 +398,23 @@ public class PushNotificationService {
                     payload
             );
 
-            HttpResponse response = pushService.send(notification);
+            RequestConfig config = RequestConfig.custom()
+                    .setConnectTimeout(2500).setConnectionRequestTimeout(2500)
+                    .setSocketTimeout(5000).setRedirectsEnabled(false).build();
+            HttpPost post = pushService.preparePost(notification, Encoding.AES128GCM);
+            post.setConfig(config);
+            HttpResponse response;
+            try (CloseableHttpAsyncClient client = HttpAsyncClients.custom()
+                    .setDefaultRequestConfig(config).build()) {
+                client.start();
+                Future<HttpResponse> result = client.execute(post, null);
+                try {
+                    response = result.get(8, TimeUnit.SECONDS);
+                } catch (Exception ex) {
+                    result.cancel(true);
+                    throw ex;
+                }
+            }
             int statusCode = response.getStatusLine().getStatusCode();
 
             if (statusCode == 404 || statusCode == 410) {
@@ -364,12 +435,55 @@ public class PushNotificationService {
                 );
             }
         } catch (Exception ex) {
+            if (ex instanceof InterruptedException) Thread.currentThread().interrupt();
             log.warn(
                     "Falha ao enviar Web Push para a inscrição {}.",
                     subscription.id(),
                     ex
             );
         }
+    }
+
+    private void validateSubscription(String endpoint, String p256dh, String auth) {
+        endpointValidator.validate(endpoint);
+        try {
+            byte[] publicKeyBytes = Base64.getUrlDecoder().decode(p256dh);
+            byte[] authBytes = Base64.getUrlDecoder().decode(auth);
+            if (publicKeyBytes.length != 65 || publicKeyBytes[0] != 4 || authBytes.length != 16) {
+                throw new IllegalArgumentException();
+            }
+            // The library also verifies that p256dh encodes a valid curve point.
+            new Notification(endpoint, p256dh, auth, new byte[0]);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Chaves da inscrição push inválidas.");
+        }
+    }
+
+    private void dispatch(Runnable notification) {
+        if (!isConfigured()) return;
+        Runnable enqueue = () -> {
+            try {
+                notifications.execute(notification);
+            } catch (RejectedExecutionException ex) {
+                log.warn("Fila de notificações push cheia; envio ignorado.");
+            }
+        };
+        if (TransactionSynchronizationManager.isActualTransactionActive()
+                && TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    enqueue.run();
+                }
+            });
+        } else {
+            enqueue.run();
+        }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        notifications.shutdownNow();
     }
 
     private record SubscriptionRow(

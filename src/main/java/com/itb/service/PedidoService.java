@@ -37,6 +37,10 @@ public class PedidoService {
     // =========================
     public Order criarPedido(PedidoCreateRequest request) {
 
+        if (request.itens().stream().map(ItemPedidoRequest::produtoId).distinct().count() != request.itens().size()) {
+            throw new IllegalArgumentException("Agrupe as quantidades de produtos repetidos antes de enviar o pedido.");
+        }
+
         StringBuilder sql = new StringBuilder();
 
         sql.append("DECLARE @itens dbo.TipoItemPedido; ");

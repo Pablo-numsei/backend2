@@ -1,6 +1,7 @@
 package com.itb.service;
 
 import com.itb.model.Order;
+import com.itb.dto.OrderResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -21,7 +22,7 @@ public class SocketService {
      * no topico "/topic/orders", assim como um "emit" no Socket.IO.
      */
     public void notifyOrderUpdate(Order order) {
-        messagingTemplate.convertAndSend("/topic/orders", order);
+        messagingTemplate.convertAndSend("/topic/orders", OrderResponse.from(order));
     }
 }
 

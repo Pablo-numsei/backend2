@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -48,6 +50,7 @@ public class UsuarioController {
             @PathVariable Long id
     ) {
 
+
         return usuarioRepository
                 .findById(id)
                 .map(ResponseEntity::ok)
@@ -64,6 +67,10 @@ public class UsuarioController {
     public ResponseEntity<?> create(
             @Valid @RequestBody UsuarioCreateRequest request
     ) {
+
+        if (request.senha().getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new IllegalArgumentException("A senha deve ter no máximo 72 bytes em UTF-8.");
+        }
 
         if (usuarioRepository.existsByEmailIgnoreCase(
                 request.email()
@@ -93,7 +100,7 @@ public class UsuarioController {
 
         usuario.setPerfil(perfil);
         usuario.setName(request.nome());
-        usuario.setEmail(request.email());
+        usuario.setEmail(request.email().trim().toLowerCase(Locale.ROOT));
 
         usuario.setPasswordHash(
                 passwordEncoder.encode(

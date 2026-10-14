@@ -43,3 +43,8 @@ Thumbs.db
 ### Configurações locais / senhas ###
 .env
 application-local.properties
+
+### Recuperacao e ferramentas locais ###
+.tablehub-recovery/
+.maven-home/
+.m2-cache/

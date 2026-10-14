@@ -23,6 +23,9 @@ public class JwtService {
     @Value("${jwt.expiration}")
     private long expiration;
 
+    @Value("${jwt.order-expiration:86400000}")
+    private long orderExpiration;
+
     private SecretKey getSigningKey() {
 
         byte[] keyBytes =
@@ -39,6 +42,7 @@ public class JwtService {
                 new Date(now.getTime() + expiration);
 
         return Jwts.builder()
+                .claim("purpose", "staff")
                 .subject(usuario.getEmail())
                 .claim(
                         "usuarioId",
@@ -67,13 +71,31 @@ public class JwtService {
             Claims claims =
                     extractClaims(token);
 
-            return claims.getExpiration()
+            return "staff".equals(claims.get("purpose", String.class)) && claims.getExpiration()
                     .after(new Date());
 
         } catch (Exception ex) {
 
             return false;
         }
+    }
+
+    public String generateOrderToken(Long orderId) {
+        Date now = new Date();
+        return Jwts.builder().subject("order:" + orderId)
+                .claim("purpose", "order-access").claim("orderId", orderId)
+                .issuedAt(now).expiration(new Date(now.getTime() + orderExpiration))
+                .signWith(getSigningKey()).compact();
+    }
+
+    public boolean isOrderTokenValid(String token, Long orderId) {
+        if (token == null || token.isBlank() || orderId == null) return false;
+        try {
+            Claims claims = extractClaims(token);
+            return "order-access".equals(claims.get("purpose", String.class))
+                    && orderId.equals(claims.get("orderId", Long.class))
+                    && claims.getExpiration().after(new Date());
+        } catch (Exception invalidToken) { return false; }
     }
 
     private Claims extractClaims(String token) {

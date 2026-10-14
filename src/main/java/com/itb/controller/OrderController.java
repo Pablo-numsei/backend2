@@ -1,16 +1,19 @@
 package com.itb.controller;
+
 import com.itb.dto.AvancarStatusRequest;
+import com.itb.dto.OrderResponse;
 import com.itb.dto.PedidoCreateRequest;
 import com.itb.model.Order;
 import com.itb.repository.OrderRepository;
+import com.itb.service.CurrentUserService;
+import com.itb.service.JwtService;
+import com.itb.service.OrderAccessService;
 import com.itb.service.PedidoService;
-
 import jakarta.validation.Valid;
-
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,69 +22,44 @@ import java.util.List;
 @RequestMapping("/api/pedidos")
 @RequiredArgsConstructor
 public class OrderController {
-
     private final OrderRepository orderRepository;
     private final PedidoService pedidoService;
+    private final OrderAccessService orderAccessService;
+    private final JwtService jwtService;
+    private final CurrentUserService currentUser;
 
-    // LISTAR TODOS OS PEDIDOS
     @GetMapping
-    public ResponseEntity<List<Order>> getAll() {
-
-        return ResponseEntity.ok(
-                orderRepository.findByDeletedAtIsNullOrderByCreatedAtAsc()
-        );
+    public List<OrderResponse> getAll() {
+        return orderRepository.findByDeletedAtIsNullOrderByCreatedAtAsc().stream().map(OrderResponse::from).toList();
     }
 
-    // BUSCAR PEDIDO POR ID
-   @GetMapping("/{id}")
-public ResponseEntity<Order> getById(
-        @PathVariable("id") Long id) {
+    @GetMapping("/{id}")
+    public OrderResponse getById(@PathVariable Long id,
+            @RequestHeader(value = "X-Order-Token", required = false) String token) {
+        return OrderResponse.from(orderAccessService.requireAccess(id, token));
+    }
 
-    return orderRepository.findById(id)
-            .filter(order -> order.getDeletedAt() == null)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
-}
-
-    // BUSCAR PEDIDOS POR STATUS
     @GetMapping("/status/{status}")
-    public ResponseEntity<List<Order>> getByStatus(
-            @PathVariable String status) {
-
-        return ResponseEntity.ok(
-                orderRepository
-                        .findByStatus_NameAndDeletedAtIsNullOrderByCreatedAtAsc(
-                                status
-                        )
-        );
+    public List<OrderResponse> getByStatus(@PathVariable String status) {
+        return orderRepository.findByStatus_NameAndDeletedAtIsNullOrderByCreatedAtAsc(status)
+                .stream().map(OrderResponse::from).toList();
     }
 
-    // CRIAR PEDIDO
     @PostMapping
-    public ResponseEntity<Order> criarPedido(
-            @Valid @RequestBody PedidoCreateRequest request) {
-
-        Order pedido = pedidoService.criarPedido(request);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(pedido);
+    public ResponseEntity<OrderResponse> criarPedido(@Valid @RequestBody PedidoCreateRequest request) {
+        Order order = pedidoService.criarPedido(new PedidoCreateRequest(request.mesaId(), currentUser.idOrNull(), request.itens()));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(OrderResponse.from(order, jwtService.generateOrderToken(order.getId())));
     }
 
-
-
-// AVANÇAR STATUS DO PEDIDO
-@PatchMapping("/{id}/status")
-public ResponseEntity<Order> avancarStatus(
-        @PathVariable("id") Long id,
-        @Valid @RequestBody AvancarStatusRequest request) {
-
-    Order pedidoAtualizado = pedidoService.avancarStatus(
-            id,
-            request
-    );
-
-    return ResponseEntity.ok(pedidoAtualizado);
-}
-
+    @PatchMapping("/{id}/status")
+    public OrderResponse avancarStatus(@PathVariable Long id, @Valid @RequestBody AvancarStatusRequest request) {
+        String status = request.novoStatus().trim();
+        if (!currentUser.hasAnyRole("ADMINISTRADOR") &&
+                !(currentUser.hasAnyRole("COZINHA") && (status.equals("Em preparo") || status.equals("Pronto"))) &&
+                !(currentUser.hasAnyRole("GARCOM") && status.equals("Entregue"))) {
+            throw new AccessDeniedException("Seu perfil não pode executar esta transição.");
+        }
+        return OrderResponse.from(pedidoService.avancarStatus(id, new AvancarStatusRequest(status, currentUser.idOrNull())));
+    }
 }

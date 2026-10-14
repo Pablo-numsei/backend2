@@ -14,8 +14,8 @@ public record PaymentRequest(
         String method,
 
         @Size(
-                max = 150,
-                message = "A referência do gateway deve ter no máximo 150 caracteres"
+                max = 0,
+                message = "A confirmação de um gateway não pode ser enviada pelo cliente"
         )
         String gatewayReference
 

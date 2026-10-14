@@ -1,140 +1,80 @@
 package com.itb.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
 import org.springframework.http.HttpMethod;
-
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
-
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.util.Map;
+
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
+    @Bean
+    public PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    @Bean
+    public RequestRateLimitFilter requestRateLimitFilter() { return new RequestRateLimitFilter(); }
 
-    public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter
-    ) {
-        this.jwtAuthenticationFilter =
-                jwtAuthenticationFilter;
+    @Bean
+    public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(JwtAuthenticationFilter filter) {
+        FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-
-        return new BCryptPasswordEncoder();
+    public FilterRegistrationBean<RequestRateLimitFilter> rateFilterRegistration(RequestRateLimitFilter filter) {
+        FilterRegistrationBean<RequestRateLimitFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http
-    ) throws Exception {
-
-        http
-
-                .csrf(csrf ->
-                        csrf.disable()
-                )
-
-                .cors(cors -> {
-                })
-
-                .formLogin(form ->
-                        form.disable()
-                )
-
-                .httpBasic(basic ->
-                        basic.disable()
-                )
-
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(
-                                SessionCreationPolicy.STATELESS
-                        )
-                )
-.authorizeHttpRequests(auth -> auth
-
-        .requestMatchers(
-                HttpMethod.POST,
-                "/api/auth/login"
-        ).permitAll()
-
-        // TEMPORÁRIO: permite criar o primeiro usuário
-        .requestMatchers(
-                HttpMethod.POST,
-                "/api/usuarios"
-        ).permitAll()
-
-        .requestMatchers(
-                "/ws/**"
-        ).permitAll()
-                  .requestMatchers(
-                "/api/usuarios/**"
-      ).hasRole("ADMINISTRADOR")
-
-
-       // Produtos podem ser visualizados pelo cliente
-        .requestMatchers(
-                HttpMethod.GET,
-                "/api/v1/produtos/**"
-        ).permitAll()
-
-        // Criar produto: administrador
-        .requestMatchers(
-                HttpMethod.POST,
-                "/api/v1/produtos/**"
-        ).hasRole("ADMINISTRADOR")
-
-        // Editar produto: administrador
-        .requestMatchers(
-                HttpMethod.PUT,
-                "/api/v1/produtos/**"
-        ).hasRole("ADMINISTRADOR")
-
-        // Excluir produto: administrador
-        .requestMatchers(
-                HttpMethod.DELETE,
-                "/api/v1/produtos/**"
-        ).hasRole("ADMINISTRADOR")
-
-        // Mesas - leitura pública temporariamente
-        .requestMatchers(
-                HttpMethod.GET,
-                "/api/mesas/**"
-        ).permitAll()
-
-        // Criar mesa - somente administrador
-        .requestMatchers(
-                HttpMethod.POST,
-                "/api/mesas/**"
-        ).hasRole("ADMINISTRADOR")
-
-        // Editar mesa - somente administrador
-        .requestMatchers(
-                HttpMethod.PUT,
-                "/api/mesas/**"
-        ).hasRole("ADMINISTRADOR")
-
-        // Desativar mesa - somente administrador
-        .requestMatchers(
-                HttpMethod.DELETE,
-                "/api/mesas/**"
-        ).hasRole("ADMINISTRADOR")
-
-        .anyRequest().permitAll()
-)
-                .addFilterBefore(
-                        jwtAuthenticationFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                );
-
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter,
+                                                   RequestRateLimitFilter rateFilter, ObjectMapper mapper) throws Exception {
+        http.csrf(csrf -> csrf.disable())
+                .cors(cors -> {})
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(errors -> errors
+                        .authenticationEntryPoint((request, response, exception) -> {
+                            response.setStatus(401);
+                            response.setContentType("application/json;charset=UTF-8");
+                            mapper.writeValue(response.getWriter(), Map.of("status", 401, "message", "Autenticação necessária."));
+                        })
+                        .accessDeniedHandler((request, response, exception) -> {
+                            response.setStatus(403);
+                            response.setContentType("application/json;charset=UTF-8");
+                            mapper.writeValue(response.getWriter(), Map.of("status", 403, "message", "Acesso não permitido."));
+                        }))
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers("/error").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers("/api/usuarios/**", "/api/perfis/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/produtos/**", "/api/mesas/**", "/api/status-pedidos", "/api/push/public-key").permitAll()
+                        .requestMatchers("/api/v1/produtos/**", "/api/mesas/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers(HttpMethod.GET, "/api/pedidos", "/api/pedidos/status/**").hasAnyRole("ADMINISTRADOR", "GARCOM", "COZINHA")
+                        .requestMatchers(HttpMethod.PATCH, "/api/pedidos/*/status").hasAnyRole("ADMINISTRADOR", "GARCOM", "COZINHA")
+                        // Individual reads require an order-scoped token inside their controllers.
+                        .requestMatchers(HttpMethod.GET, "/api/pedidos/*", "/api/itens-pedido/pedido/*", "/api/payments/*").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/pedidos", "/api/payments/*/process", "/api/atendimentos", "/api/push/subscriptions").permitAll()
+                        .requestMatchers("/api/payments/*/confirm", "/api/payments/*/cancel", "/api/dashboard/**", "/api/atendimentos/**", "/api/push/staff-subscriptions").hasAnyRole("ADMINISTRADOR", "GARCOM")
+                        // STOMP CONNECT and inbound messages are checked by the channel interceptor.
+                        .requestMatchers("/ws/**").permitAll()
+                        .anyRequest().denyAll())
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(rateFilter, JwtAuthenticationFilter.class);
         return http.build();
     }
 }
