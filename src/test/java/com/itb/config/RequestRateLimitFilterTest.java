@@ -7,6 +7,9 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletInputStream;
+import java.nio.charset.StandardCharsets;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -115,9 +118,132 @@ class RequestRateLimitFilterTest {
         assertEquals(26, passed.get());
     }
 
+    @Test
+    void unknownLengthBodyCannotBypassActualByteLimit() throws Exception {
+        var request = unknownLengthRequest(new byte[262145]);
+        var response = new MockHttpServletResponse();
+        AtomicInteger passed = new AtomicInteger();
+
+        filter.doFilterInternal(request, response, (req, res) -> passed.incrementAndGet());
+
+        assertEquals(413, response.getStatus());
+        assertEquals(0, passed.get());
+    }
+
+    @Test
+    void unknownLengthUtf8JsonIsPreservedForDownstreamParser() throws Exception {
+        byte[] body = "{\"senha\":\"synthetic-á\"}".getBytes(StandardCharsets.UTF_8);
+        var request = unknownLengthRequest(body);
+        var response = new MockHttpServletResponse();
+
+        filter.doFilterInternal(request, response, (req, res) -> {
+            assertArrayEquals(body, req.getInputStream().readAllBytes());
+            assertEquals(body.length, req.getContentLengthLong());
+        });
+
+        assertEquals(200, response.getStatus());
+    }
+
+    @Test
+    void boundedBodyReaderPreservesExplicitEncoding() throws Exception {
+        byte[] body = "synthetic-á".getBytes(StandardCharsets.UTF_8);
+        var request = unknownLengthRequest(body);
+        request.setCharacterEncoding(StandardCharsets.UTF_8.name());
+
+        filter.doFilterInternal(request, new MockHttpServletResponse(), (req, res) ->
+                assertEquals("synthetic-á", req.getReader().readLine()));
+    }
+
+    @Test
+    void actualBodyReadStopsAtOneOverflowByte() throws Exception {
+        AtomicInteger consumed = new AtomicInteger();
+        ServletInputStream stream = new ServletInputStream() {
+            @Override public boolean isFinished() { return consumed.get() >= 1_000_000; }
+            @Override public boolean isReady() { return true; }
+            @Override public void setReadListener(ReadListener listener) { throw new UnsupportedOperationException(); }
+            @Override public int read() { return consumed.getAndIncrement() < 1_000_000 ? 'x' : -1; }
+            @Override public int read(byte[] bytes, int offset, int length) {
+                // InputStream requires zero for an empty read, even at EOF. readNBytes
+                // can issue that read while advancing its bounded internal buffers.
+                if (length == 0) return 0;
+                int count = Math.min(length, 1_000_000 - consumed.get());
+                if (count == 0) return -1;
+                java.util.Arrays.fill(bytes, offset, offset + count, (byte) 'x');
+                consumed.addAndGet(count);
+                return count;
+            }
+        };
+        var request = new MockHttpServletRequest("POST", "/api/pedidos") {
+            @Override public int getContentLength() { return -1; }
+            @Override public long getContentLengthLong() { return -1; }
+            @Override public ServletInputStream getInputStream() { return stream; }
+        };
+        request.setServletPath("/api/pedidos");
+        var response = new MockHttpServletResponse();
+
+        filter.doFilterInternal(request, response, (req, res) -> fail("Oversized body reached the application"));
+
+        assertEquals(413, response.getStatus());
+        assertEquals(262145, consumed.get());
+    }
+
+    @Test
+    void containerDecodedServletPathSharesRateBudgetWithEncodedUri() throws Exception {
+        for (int attempt = 0; attempt < 20; attempt++) {
+            filter.doFilterInternal(request("POST", "/api/auth/login"), new MockHttpServletResponse(), (req, res) -> {});
+        }
+        var encoded = request("POST", "/api/auth/login");
+        encoded.setContextPath("/tablehub");
+        encoded.setRequestURI("/tablehub/api/auth/%6cogin");
+        var response = new MockHttpServletResponse();
+
+        filter.doFilterInternal(encoded, response, (req, res) -> fail("Encoded URL bypassed the rate budget"));
+
+        assertEquals(429, response.getStatus());
+    }
+
+    @Test
+    void fallbackParsesRawPathSegmentsExactlyOnce() {
+        var encoded = request("POST", "/api/auth/%6cogin");
+        encoded.setServletPath("");
+        assertEquals("/api/auth/login", RequestRateLimitFilter.canonicalPath(encoded));
+        encoded.setRequestURI("/api/auth/%256cogin");
+        assertEquals("/api/auth/%6cogin", RequestRateLimitFilter.canonicalPath(encoded));
+    }
+
+    @Test
+    void servletPathIsNeverDecodedAgain() {
+        var request = request("POST", "/api/auth/%6cogin");
+        request.setRequestURI("/api/auth/%256cogin");
+        assertEquals("/api/auth/%6cogin", RequestRateLimitFilter.canonicalPath(request));
+    }
+
+    @Test
+    void unknownPushPathsCannotExhaustTheGlobalRateBudget() throws Exception {
+        for (int attempt = 0; attempt < 10_005; attempt++) {
+            filter.doFilterInternal(request("POST", "/api/push/unknown-" + attempt),
+                    new MockHttpServletResponse(), (req, res) -> {});
+        }
+        var response = new MockHttpServletResponse();
+        filter.doFilterInternal(request("POST", "/api/auth/login"), response, (req, res) -> {});
+        assertEquals(200, response.getStatus(), "Unknown routes must not consume another endpoint's rate capacity");
+    }
+
+    private MockHttpServletRequest unknownLengthRequest(byte[] body) {
+        var request = new MockHttpServletRequest("POST", "/api/pedidos") {
+            @Override public int getContentLength() { return -1; }
+            @Override public long getContentLengthLong() { return -1; }
+        };
+        request.setServletPath("/api/pedidos");
+        request.setRemoteAddr("192.0.2.1");
+        request.setContent(body);
+        return request;
+    }
+
     private static Stream<Arguments> limitedRoutes() {
         return Stream.of(
                 Arguments.of("/api/auth/login", 20),
+                Arguments.of("/api/mesas/contexto", 20),
                 Arguments.of("/api/push/subscriptions", 20),
                 Arguments.of("/api/pedidos", 60),
                 Arguments.of("/api/atendimentos", 60)
