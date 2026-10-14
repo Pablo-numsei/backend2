@@ -800,3 +800,158 @@ SELECT TABLE_NAME
 FROM INFORMATION_SCHEMA.TABLES
 WHERE TABLE_TYPE = 'BASE TABLE'
 ORDER BY TABLE_NAME;
+
+
+SELECT
+    id_usuario,
+    nome,
+    email,
+    perfil_id
+FROM dbo.Usuarios;
+
+SELECT id_perfil, nome
+FROM dbo.Perfis;
+
+
+
+DECLARE @email NVARCHAR(180) = N'admin@example.invalid';
+DECLARE @hash NVARCHAR(255) = N'$2a$10$6hR6PLs42A8/gXD18jIuQe3EaK9Bv2I.L5XdOCvw2KLhh3bTVqCP2';
+
+SELECT
+    UNICODE(SUBSTRING(@hash, 7, 1)) AS Caractere7,
+    UNICODE(RIGHT(@hash, 1)) AS UltimoCaractere;
+
+
+
+SELECT
+    LEN(@hash) AS TamanhoHash,
+    LEFT(@hash, 7) AS InicioHash,
+    CASE
+        WHEN @hash LIKE '$2[ab]$12$%'
+        THEN 'VALIDO'
+        ELSE 'INVALIDO'
+    END AS Validacao,
+    CASE
+        WHEN @email = N'SEU_EMAIL_AQUI'
+        THEN 'EMAIL NAO ALTERADO'
+        ELSE 'EMAIL ALTERADO'
+    END AS Email;
+
+
+
+
+
+
+
+IF EXISTS (
+    SELECT 1
+    FROM dbo.Usuarios
+    WHERE email = @email
+)
+BEGIN
+    SELECT 'Este e-mail já está cadastrado.' AS Resultado;
+END
+ELSE IF @email = N'SEU_EMAIL_AQUI'
+     OR @hash = N'SEU_HASH_AQUI'
+     OR @hash NOT LIKE '$2[ab]$12$%'
+BEGIN
+    SELECT 'Verifique o e-mail e o hash BCrypt.' AS Resultado;
+END
+ELSE
+BEGIN
+    INSERT INTO dbo.Usuarios
+        (perfil_id, nome, email, senha_hash, ativo)
+    SELECT
+        id_perfil,
+        N'Administrador TableHub',
+        @email,
+        @hash,
+        1
+    FROM dbo.Perfis
+    WHERE nome = N'Administrador';
+
+    SELECT id_usuario, nome, email, perfil_id, ativo
+    FROM dbo.Usuarios
+    WHERE email = @email;
+END;
+
+
+SELECT
+    id_usuario,
+    email,
+    ativo,
+    perfil_id,
+    LEN(senha_hash) AS TamanhoHash,
+    LEFT(senha_hash, 7) AS InicioHash
+FROM dbo.Usuarios
+WHERE id_usuario = 1;
+
+SELECT senha_hash
+FROM dbo.Usuarios
+WHERE id_usuario = 1;
+
+
+SELECT COUNT(*) AS TotalProdutos
+FROM dbo.Produtos;
+
+SELECT id_categoria, nome
+FROM dbo.Categorias;
+
+
+INSERT INTO dbo.Produtos
+    (categoria_id, nome, descricao, preco, estoque)
+VALUES
+    (1, N'Hambúrguer Artesanal',
+     N'Pão, carne, queijo e salada',
+     29.90, 20);
+
+
+
+     SELECT id_produto, nome, preco, estoque, disponivel
+FROM dbo.Produtos;
+
+
+
+INSERT INTO dbo.Mesas (numero, qr_code)
+OUTPUT inserted.id_mesa, inserted.numero, inserted.qr_code
+VALUES (
+    1,
+    CONCAT('mesa-1-', CONVERT(VARCHAR(36), NEWID()))
+);
+
+
+
+SELECT
+    p.id_pedido,
+    m.numero AS mesa,
+    s.nome AS status,
+    p.valor_total,
+    p.confirmado
+FROM dbo.Pedidos p
+JOIN dbo.Mesas m ON p.mesa_id = m.id_mesa
+JOIN dbo.Status_Pedido s ON p.status_id = s.id_status
+ORDER BY p.id_pedido DESC;
+
+SELECT
+    id_produto,
+    nome,
+    estoque,
+    disponivel
+FROM dbo.Produtos
+WHERE id_produto = 1;
+
+
+SELECT
+    h.pedido_id,
+    s.nome AS status,
+    h.alterado_em
+FROM dbo.Historico_Status_Pedido h
+JOIN dbo.Status_Pedido s
+    ON h.status_id = s.id_status
+WHERE h.pedido_id = 1
+ORDER BY h.alterado_em;
+
+SELECT *
+FROM dbo.Pagamentos
+WHERE pedido_id = 1;
+
