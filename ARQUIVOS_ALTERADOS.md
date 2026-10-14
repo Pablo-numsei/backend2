@@ -1,5 +1,7 @@
 # Arquivos alterados nesta entrega
 
+> Histórico de 13/10/2026. Para a rodada de finalização de 14/10/2026, consulte [ARQUIVOS_FINALIZACAO.md](ARQUIVOS_FINALIZACAO.md).
+
 Lista de alterações e arquivos novos desta sessão; inclui testes e documentação. As alterações SQL que já existiam foram verificadas contra o snapshot e são publicadas em commit separado, sem executar migrações.
 
 ## Backend — D:\backend2

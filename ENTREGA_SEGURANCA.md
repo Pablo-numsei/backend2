@@ -1,5 +1,7 @@
 # TableHub — correções prioritárias para a entrega
 
+> Histórico da rodada de 13/10/2026. A finalização de 14/10/2026, com QR assinado, mesas e atendimento, está em [AUDITORIA_FINALIZACAO.md](AUDITORIA_FINALIZACAO.md). As pendências e verificações abaixo descrevem a rodada anterior; o verificador de recuperação citado compara especificamente aquele snapshot antigo.
+
 ## Estado e recuperação
 
 Os dois repositórios permanecem nas branches originais (`main`). A publicação no GitHub foi autorizada pelo usuário após as correções e usa os remotes próprios de cada projeto: `Pablo-numsei/backend2` e `Pablo-numsei/tablehub-front-v2`. Nenhuma alteração de schema foi aplicada.
