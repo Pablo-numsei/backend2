@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import javax.crypto.SecretKey;
 
 import java.util.Date;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 @Service
 public class JwtService {
@@ -97,6 +99,49 @@ public class JwtService {
                     && claims.getExpiration().after(new Date());
         } catch (Exception invalidToken) { return false; }
     }
+
+    /** QR imprimível: a validade é controlada pela versão e pelo estado atual da mesa. */
+    public String generateTableQrToken(Long mesaId, String qrVersion) {
+        return Jwts.builder().subject("table:" + mesaId)
+                .claim("purpose", "table-qr").claim("mesaId", mesaId).claim("qrVersion", qrVersion)
+                .signWith(getSigningKey()).compact();
+    }
+
+    public String generateTableAccessToken(Long mesaId, String qrVersion) {
+        Instant now = Instant.now();
+        Instant expiresAt = now.plus(2, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS);
+        return Jwts.builder().subject("table:" + mesaId)
+                .claim("purpose", "table-access").claim("mesaId", mesaId).claim("qrVersion", qrVersion)
+                .issuedAt(Date.from(now)).expiration(Date.from(expiresAt))
+                .signWith(getSigningKey()).compact();
+    }
+
+    public TableTokenClaims readTableQrToken(String token) {
+        return readTableToken(token, "table-qr", false);
+    }
+
+    public TableTokenClaims readTableAccessToken(String token) {
+        return readTableToken(token, "table-access", true);
+    }
+
+    private TableTokenClaims readTableToken(String token, String purpose, boolean requireExpiry) {
+        if (token == null || token.isBlank() || token.length() > 4096) return null;
+        try {
+            Claims claims = extractClaims(token);
+            Long mesaId = claims.get("mesaId", Long.class);
+            String version = claims.get("qrVersion", String.class);
+            Date expires = claims.getExpiration();
+            if (!purpose.equals(claims.get("purpose", String.class)) || mesaId == null || mesaId <= 0
+                    || !("table:" + mesaId).equals(claims.getSubject())
+                    || version == null || version.isBlank() || version.length() > 128
+                    || (requireExpiry && (expires == null || !expires.after(new Date())))) return null;
+            return new TableTokenClaims(mesaId, version, expires == null ? null : expires.toInstant());
+        } catch (Exception invalidToken) {
+            return null;
+        }
+    }
+
+    public record TableTokenClaims(Long mesaId, String qrVersion, Instant expiresAt) {}
 
     private Claims extractClaims(String token) {
 

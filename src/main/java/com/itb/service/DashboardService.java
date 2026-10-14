@@ -1,6 +1,7 @@
 package com.itb.service;
 
 import com.itb.dto.DashboardResumoResponse;
+import com.itb.dto.MesaPanelResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class DashboardService {
 
     private final JdbcTemplate jdbcTemplate;
+    private final MesaPanelService mesaPanelService;
 
     public DashboardResumoResponse getResumo() {
 
@@ -67,34 +69,9 @@ public class DashboardService {
                         RoundingMode.HALF_UP
                 );
 
-        long totalMesas = numberOrZero(
-                jdbcTemplate.queryForObject(
-                        """
-                        SELECT COUNT(*)
-                        FROM dbo.Mesas
-                        WHERE ativa = 1
-                        """,
-                        Long.class
-                )
-        );
-
-        long mesasOcupadas = numberOrZero(
-                jdbcTemplate.queryForObject(
-                        """
-                        SELECT COUNT(DISTINCT p.mesa_id)
-                        FROM dbo.Pedidos p
-                        INNER JOIN dbo.Status_Pedido s
-                            ON s.id_status = p.status_id
-                        INNER JOIN dbo.Mesas m
-                            ON m.id_mesa = p.mesa_id
-                        WHERE p.excluido_em IS NULL
-                          AND p.confirmado = 1
-                          AND m.ativa = 1
-                          AND s.nome <> N'Entregue'
-                        """,
-                        Long.class
-                )
-        );
+        List<MesaPanelResponse> tablePanel = mesaPanelService.getPanel();
+        long totalMesas = tablePanel.size();
+        long mesasOcupadas = tablePanel.stream().filter(table -> !table.orders().isEmpty()).count();
 
         List<DashboardResumoResponse.StatusResumo> pedidosPorStatus =
                 jdbcTemplate.query(
@@ -181,35 +158,9 @@ public class DashboardService {
             );
         }
 
-        List<DashboardResumoResponse.MesaResumo> mesas =
-                jdbcTemplate.query(
-                        """
-                        SELECT TOP 8
-                            m.numero,
-                            CASE
-                                WHEN EXISTS (
-                                    SELECT 1
-                                    FROM dbo.Pedidos p
-                                    INNER JOIN dbo.Status_Pedido s
-                                        ON s.id_status = p.status_id
-                                    WHERE p.mesa_id = m.id_mesa
-                                      AND p.excluido_em IS NULL
-                                      AND p.confirmado = 1
-                                      AND s.nome <> N'Entregue'
-                                )
-                                THEN N'Ocupada'
-                                ELSE N'Livre'
-                            END AS status
-                        FROM dbo.Mesas m
-                        WHERE m.ativa = 1
-                        ORDER BY m.numero
-                        """,
-                        (rs, rowNum) ->
-                                new DashboardResumoResponse.MesaResumo(
-                                        rs.getInt("numero"),
-                                        rs.getString("status")
-                                )
-                );
+        List<DashboardResumoResponse.MesaResumo> mesas = tablePanel.stream()
+                .map(table -> new DashboardResumoResponse.MesaResumo(table.number(), table.status()))
+                .toList();
 
         return new DashboardResumoResponse(
                 pedidosHoje,

@@ -8,6 +8,7 @@ import com.itb.dto.PedidoCreateRequest;
 import com.itb.exception.GlobalExceptionHandler;
 import com.itb.model.*;
 import com.itb.repository.OrderRepository;
+import com.itb.repository.MesaRepository;
 import com.itb.repository.PerfilRepository;
 import com.itb.repository.UsuarioRepository;
 import com.itb.service.*;
@@ -45,7 +46,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "jwt.expiration=60000", "jwt.order-expiration=60000"
 })
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtService.class,
-        CurrentUserService.class, OrderAccessService.class, CorsConfiguration.class, GlobalExceptionHandler.class})
+        CurrentUserService.class, OrderAccessService.class, TableAccessService.class,
+        CorsConfiguration.class, GlobalExceptionHandler.class})
 class SecurityHttpTest {
     private static final String TEST_SECRET = "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
     @Autowired private MockMvc mvc;
@@ -55,6 +57,7 @@ class SecurityHttpTest {
     @MockBean private UsuarioRepository usuarioRepository;
     @MockBean private PerfilRepository perfilRepository;
     @MockBean private OrderRepository orderRepository;
+    @MockBean private MesaRepository mesaRepository;
     @MockBean private PedidoService pedidos;
     @MockBean private PaymentService payments;
     @MockBean private EntityManager entityManager;
@@ -76,6 +79,8 @@ class SecurityHttpTest {
         mesa.setId(3L);
         mesa.setNumber(3);
         mesa.setQrCode("synthetic-private-qr");
+        mesa.setActive(true);
+        when(mesaRepository.findByIdAndActiveTrue(3L)).thenReturn(Optional.of(mesa));
         order.setMesa(mesa);
         StatusPedido status = new StatusPedido();
         status.setName("Recebido");
@@ -268,6 +273,7 @@ class SecurityHttpTest {
     @Test
     void newOrderReceivesCapabilityAndIgnoresForgedStaffId() throws Exception {
         mvc.perform(post("/api/pedidos").contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Table-Token", tableContextToken())
                         .content("{\"mesaId\":3,\"criadoPor\":999,\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.accessToken").isString());
         ArgumentCaptor<PedidoCreateRequest> request = ArgumentCaptor.forClass(PedidoCreateRequest.class);
@@ -294,6 +300,12 @@ class SecurityHttpTest {
     }
 
     private String bearer(String role) { return "Bearer " + jwt.generateToken(staff(role)); }
+
+    private String tableContextToken() throws Exception {
+        String version = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256")
+                .digest("synthetic-private-qr".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        return jwt.generateTableAccessToken(3L, version);
+    }
 
     private Usuario staff(String role) {
         Usuario user = new Usuario();

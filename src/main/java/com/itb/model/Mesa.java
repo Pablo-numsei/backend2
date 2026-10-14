@@ -1,6 +1,7 @@
 package com.itb.model;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -29,6 +30,7 @@ public class Mesa {
 
     @NotBlank(message = "O QR Code Ã© obrigatÃ³rio")
     @Column(name = "qr_code", nullable = false, length = 255, unique = true)
+    @JsonIgnore
     private String qrCode;
 
     @Column(name = "ativa", insertable = false)

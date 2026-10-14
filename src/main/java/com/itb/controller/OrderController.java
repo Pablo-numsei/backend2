@@ -9,6 +9,7 @@ import com.itb.service.CurrentUserService;
 import com.itb.service.JwtService;
 import com.itb.service.OrderAccessService;
 import com.itb.service.PedidoService;
+import com.itb.service.TableAccessService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -27,6 +28,7 @@ public class OrderController {
     private final OrderAccessService orderAccessService;
     private final JwtService jwtService;
     private final CurrentUserService currentUser;
+    private final TableAccessService tableAccessService;
 
     @GetMapping
     public List<OrderResponse> getAll() {
@@ -46,7 +48,9 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<OrderResponse> criarPedido(@Valid @RequestBody PedidoCreateRequest request) {
+    public ResponseEntity<OrderResponse> criarPedido(@Valid @RequestBody PedidoCreateRequest request,
+            @RequestHeader(value = "X-Table-Token", required = false) String tableToken) {
+        tableAccessService.requireWriteAccess(request.mesaId(), tableToken);
         Order order = pedidoService.criarPedido(new PedidoCreateRequest(request.mesaId(), currentUser.idOrNull(), request.itens()));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(OrderResponse.from(order, jwtService.generateOrderToken(order.getId())));
