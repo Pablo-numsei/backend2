@@ -34,14 +34,14 @@ Exemplo:
 }
 ```
 
-Motivos suportados pela API: VENCIMENTO, PREPARO, DANO, OUTROS.
+Motivos aceitos pelo CHECK existente no SQL Server: OUTRO, PREPARO, DANIFICADO e VENCIMENTO. A API usa exatamente estes valores.
 O custo informado representa o custo do produto, **nao o preco de venda**.
 A coluna `registrado_por` recebe BIGINT, e nao email/nome.
 O estoque esperado protege contra saldos desatualizados (HTTP 409).
 
 ## Validacao pendente
 
-A listagem de colunas nao mostra restricoes de CHECK, FK, nullability,
+As restricoes de CHECK para motivo foram verificadas em 15/10/2026. A listagem de colunas nao mostra todas as restricoes de FK, nullability,
 precisao/escala nem defaults da tabela existente. Confirme essas regras
 com SSMS e valide um registro de teste antes da demonstracao final.
 Codigo atualizado no GitHub nao modifica automaticamente o banco.

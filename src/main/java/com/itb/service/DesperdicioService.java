@@ -138,8 +138,8 @@ public class DesperdicioService {
             throw new IllegalArgumentException("Informe o motivo do desperdicio.");
         }
         String normalizado = motivo.trim().toUpperCase(Locale.ROOT);
-        if (!List.of("VENCIMENTO", "PREPARO", "DANO", "OUTROS").contains(normalizado)) {
-            throw new IllegalArgumentException("Motivo invalido. Use VENCIMENTO, PREPARO, DANO ou OUTROS.");
+        if (!List.of("VENCIMENTO", "PREPARO", "DANIFICADO", "OUTRO").contains(normalizado)) {
+            throw new IllegalArgumentException("Motivo invalido. Use VENCIMENTO, PREPARO, DANIFICADO ou OUTRO.");
         }
         return normalizado;
     }

@@ -40,6 +40,15 @@ class DesperdicioServiceTest {
     }
 
     @Test
+    void rejectsOldMotivesThatTheDatabaseCheckDoesNotAccept() {
+        for (String invalid : List.of("DANO", "OUTROS")) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> service.registrar(request(1, 10, invalid), 1L));
+        }
+        verifyNoInteractions(jdbc);
+    }
+
+    @Test
     void rejectsNonPositiveQuantityBeforeTouchingDatabase() {
         assertThrows(IllegalArgumentException.class,
                 () -> service.registrar(request(0, 10, "PREPARO"), 1L));
@@ -48,21 +57,21 @@ class DesperdicioServiceTest {
 
     @Test
     void rejectsObservationOverLimitBeforeTouchingDatabase() {
-        var input = new DesperdicioCreateRequest(7L, 1, 10, "DANO", "x".repeat(256), new BigDecimal("3.50"));
+        var input = new DesperdicioCreateRequest(7L, 1, 10, "DANIFICADO", "x".repeat(256), new BigDecimal("3.50"));
         assertThrows(IllegalArgumentException.class, () -> service.registrar(input, 1L));
         verifyNoInteractions(jdbc);
     }
 
     @Test
     void rejectsMissingCostBeforeTouchingDatabase() {
-        var input = new DesperdicioCreateRequest(7L, 1, 10, "DANO", null, null);
+        var input = new DesperdicioCreateRequest(7L, 1, 10, "DANIFICADO", null, null);
         assertThrows(IllegalArgumentException.class, () -> service.registrar(input, 1L));
         verifyNoInteractions(jdbc);
     }
 
     @Test
     void rejectsNonMonetaryCostBeforeTouchingDatabase() {
-        var input = new DesperdicioCreateRequest(7L, 1, 10, "DANO", null, new BigDecimal("0.001"));
+        var input = new DesperdicioCreateRequest(7L, 1, 10, "DANIFICADO", null, new BigDecimal("0.001"));
         assertThrows(IllegalArgumentException.class, () -> service.registrar(input, 1L));
         verifyNoInteractions(jdbc);
     }
@@ -70,7 +79,7 @@ class DesperdicioServiceTest {
     @Test
     void rejectsMissingOperatorBeforeTouchingDatabase() {
         assertThrows(IllegalArgumentException.class,
-                () -> service.registrar(request(1, 10, "DANO"), null));
+                () -> service.registrar(request(1, 10, "DANIFICADO"), null));
         verifyNoInteractions(jdbc);
     }
 
@@ -85,7 +94,7 @@ class DesperdicioServiceTest {
     void staleStockIsRejected() {
         mockProductStock(10);
         assertThrows(IllegalStateException.class,
-                () -> service.registrar(request(2, 13, "DANO"), 1L));
+                () -> service.registrar(request(2, 13, "DANIFICADO"), 1L));
     }
 
     @Test
@@ -100,7 +109,7 @@ class DesperdicioServiceTest {
         mockProductStock(5);
         when(jdbc.update(anyString(), eq(3), eq(7L), eq(5))).thenReturn(0);
         assertThrows(IllegalStateException.class,
-                () -> service.registrar(request(2, 5, "DANO"), 1L));
+                () -> service.registrar(request(2, 5, "DANIFICADO"), 1L));
         verify(jdbc, never()).queryForObject(contains("INSERT INTO dbo.Desperdicios_Produtos"), eq(Long.class), any());
     }
 

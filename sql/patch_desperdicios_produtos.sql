@@ -9,7 +9,7 @@ BEGIN
         id_desperdicio BIGINT IDENTITY(1,1) NOT NULL,
         produto_id BIGINT NOT NULL,
         quantidade INT NOT NULL,
-        motivo NVARCHAR(40) NOT NULL,
+        motivo NVARCHAR(20) NOT NULL,
         observacao NVARCHAR(255) NULL,
         custo_unitario_informado DECIMAL(12,2) NOT NULL,
         registrado_em DATETIME2(0) NOT NULL CONSTRAINT DF_Desperdicios_RegistradoEm DEFAULT SYSUTCDATETIME(),
@@ -20,6 +20,7 @@ BEGIN
         CONSTRAINT FK_Desperdicios_Produto FOREIGN KEY (produto_id) REFERENCES dbo.Produtos(id_produto),
         CONSTRAINT FK_Desperdicios_Usuario FOREIGN KEY (registrado_por) REFERENCES dbo.Usuarios(id_usuario),
         CONSTRAINT CK_Desperdicios_Quantidade CHECK (quantidade > 0),
+        CONSTRAINT CK_Desperdicios_Motivo CHECK (motivo IN (N'OUTRO', N'PREPARO', N'DANIFICADO', N'VENCIMENTO')),
         CONSTRAINT CK_Desperdicios_Custo CHECK (custo_unitario_informado >= 0),
         CONSTRAINT CK_Desperdicios_Estoque CHECK (estoque_antes >= quantidade AND estoque_depois = estoque_antes - quantidade)
     );
