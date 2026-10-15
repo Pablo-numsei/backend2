@@ -68,6 +68,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/mesas/contexto").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/produtos/**", "/api/mesas/**", "/api/status-pedidos", "/api/push/public-key").permitAll()
                         .requestMatchers("/api/v1/produtos/**", "/api/mesas/**").hasRole("ADMINISTRADOR")
+                        .requestMatchers("/api/desperdicios", "/api/desperdicios/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/pedidos", "/api/pedidos/status/**").hasAnyRole("ADMINISTRADOR", "GARCOM", "COZINHA")
                         .requestMatchers(HttpMethod.PATCH, "/api/pedidos/*/status").hasAnyRole("ADMINISTRADOR", "GARCOM", "COZINHA")
                         // Individual reads require an order-scoped token inside their controllers.
