@@ -29,28 +29,48 @@ class DesperdicioServiceTest {
     }
 
     private DesperdicioCreateRequest request(int quantity, int expected, String reason) {
-        return new DesperdicioCreateRequest(7L, quantity, expected, reason, null);
+        return new DesperdicioCreateRequest(7L, quantity, expected, reason, null, new BigDecimal("3.50"));
     }
 
     @Test
     void rejectsInvalidReasonBeforeTouchingDatabase() {
         assertThrows(IllegalArgumentException.class,
-                () -> service.registrar(request(1, 10, "MOTIVO_DESCONHECIDO"), "admin@test.local"));
+                () -> service.registrar(request(1, 10, "MOTIVO_DESCONHECIDO"), 1L));
         verifyNoInteractions(jdbc);
     }
 
     @Test
     void rejectsNonPositiveQuantityBeforeTouchingDatabase() {
         assertThrows(IllegalArgumentException.class,
-                () -> service.registrar(request(0, 10, "PREPARO"), "admin@test.local"));
+                () -> service.registrar(request(0, 10, "PREPARO"), 1L));
         verifyNoInteractions(jdbc);
     }
 
     @Test
     void rejectsObservationOverLimitBeforeTouchingDatabase() {
-        var input = new DesperdicioCreateRequest(7L, 1, 10, "DANO", "x".repeat(256));
+        var input = new DesperdicioCreateRequest(7L, 1, 10, "DANO", "x".repeat(256), new BigDecimal("3.50"));
+        assertThrows(IllegalArgumentException.class, () -> service.registrar(input, 1L));
+        verifyNoInteractions(jdbc);
+    }
+
+    @Test
+    void rejectsMissingCostBeforeTouchingDatabase() {
+        var input = new DesperdicioCreateRequest(7L, 1, 10, "DANO", null, null);
+        assertThrows(IllegalArgumentException.class, () -> service.registrar(input, 1L));
+        verifyNoInteractions(jdbc);
+    }
+
+    @Test
+    void rejectsNonMonetaryCostBeforeTouchingDatabase() {
+        var input = new DesperdicioCreateRequest(7L, 1, 10, "DANO", null, new BigDecimal("0.001"));
+        assertThrows(IllegalArgumentException.class, () -> service.registrar(input, 1L));
+        verifyNoInteractions(jdbc);
+    }
+
+    @Test
+    void rejectsMissingOperatorBeforeTouchingDatabase() {
         assertThrows(IllegalArgumentException.class,
-                () -> service.registrar(input, "admin@test.local"));
+                () -> service.registrar(request(1, 10, "DANO"), null));
         verifyNoInteractions(jdbc);
     }
 
@@ -58,21 +78,30 @@ class DesperdicioServiceTest {
     void inactiveOrMissingProductCannotBeWasted() {
         when(jdbc.query(anyString(), any(RowMapper.class), eq(7L))).thenReturn(List.of());
         assertThrows(ResourceNotFoundException.class,
-                () -> service.registrar(request(1, 10, "VENCIMENTO"), "admin@test.local"));
+                () -> service.registrar(request(1, 10, "VENCIMENTO"), 1L));
     }
 
     @Test
     void staleStockIsRejected() {
         mockProductStock(10);
         assertThrows(IllegalStateException.class,
-                () -> service.registrar(request(2, 13, "DANO"), "admin@test.local"));
+                () -> service.registrar(request(2, 13, "DANO"), 1L));
     }
 
     @Test
     void wasteCannotExceedRealStock() {
         mockProductStock(3);
         assertThrows(IllegalArgumentException.class,
-                () -> service.registrar(request(4, 3, "PREPARO"), "admin@test.local"));
+                () -> service.registrar(request(4, 3, "PREPARO"), 1L));
+    }
+
+    @Test
+    void failedStockWriteDoesNotCreateDesperdicio() {
+        mockProductStock(5);
+        when(jdbc.update(anyString(), eq(3), eq(7L), eq(5))).thenReturn(0);
+        assertThrows(IllegalStateException.class,
+                () -> service.registrar(request(2, 5, "DANO"), 1L));
+        verify(jdbc, never()).queryForObject(contains("INSERT INTO dbo.Desperdicios_Produtos"), eq(Long.class), any());
     }
 
     private void mockProductStock(int stock) {
@@ -80,8 +109,6 @@ class DesperdicioServiceTest {
             RowMapper<?> mapper = invocation.getArgument(1);
             ResultSet rs = mock(ResultSet.class);
             when(rs.getLong("id_produto")).thenReturn(7L);
-            when(rs.getString("nome")).thenReturn("Produto de teste");
-            when(rs.getBigDecimal("preco")).thenReturn(new BigDecimal("11.00"));
             when(rs.getInt("estoque")).thenReturn(stock);
             return List.of(mapper.mapRow(rs, 0));
         });
