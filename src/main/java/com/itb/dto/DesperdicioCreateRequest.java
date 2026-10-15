@@ -16,5 +16,5 @@ public record DesperdicioCreateRequest(
         @NotNull @PositiveOrZero Integer estoqueEsperado,
         @NotBlank @Size(max = 20) String motivo,
         @Size(max = 255) String observacao,
-        @NotNull @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal custoUnitarioInformado
+        @DecimalMin("0.00") @Digits(integer = 10, fraction = 2) BigDecimal custoUnitarioInformado
 ) {}

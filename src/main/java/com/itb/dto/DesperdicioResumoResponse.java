@@ -5,5 +5,6 @@ import java.math.BigDecimal;
 public record DesperdicioResumoResponse(
         Long registros,
         Long unidades,
-        BigDecimal prejuizo
+        BigDecimal prejuizo,
+        Long registrosSemCusto
 ) {}

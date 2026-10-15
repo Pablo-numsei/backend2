@@ -60,11 +60,13 @@ public class DesperdicioService {
                 SELECT COUNT_BIG(*) AS registros,
                        COALESCE(SUM(CAST(quantidade AS BIGINT)), 0) AS unidades,
                        COALESCE(SUM(CAST(quantidade AS DECIMAL(18,2)) * custo_unitario_informado),
-                                CAST(0 AS DECIMAL(18,2))) AS prejuizo
+                                CAST(0 AS DECIMAL(18,2))) AS prejuizo,
+                       COUNT_BIG(CASE WHEN custo_unitario_informado IS NULL THEN 1 END) AS registros_sem_custo
                   FROM dbo.Desperdicios_Produtos
                  WHERE registrado_em >= DATEADD(day, -30, SYSUTCDATETIME())
                 """, (rs, rowNum) -> new DesperdicioResumoResponse(
-                rs.getLong("registros"), rs.getLong("unidades"), rs.getBigDecimal("prejuizo")));
+                rs.getLong("registros"), rs.getLong("unidades"), rs.getBigDecimal("prejuizo"),
+                rs.getLong("registros_sem_custo")));
     }
 
     @Transactional
@@ -79,7 +81,7 @@ public class DesperdicioService {
         }
 
         BigDecimal custo = request.custoUnitarioInformado();
-        if (custo == null || custo.signum() < 0 || custo.scale() > 2 || custo.precision() - custo.scale() > 10) {
+        if (custo != null && (custo.signum() < 0 || custo.scale() > 2 || custo.precision() - custo.scale() > 10)) {
             throw new IllegalArgumentException("Informe o custo unitario em reais, com ate duas casas decimais.");
         }
 

@@ -12,7 +12,7 @@ dados. Nenhuma migracao destrutiva e necessaria para a tabela informada.
 ## Funcionamento
 
 - Acesso restrito ao perfil ADMINISTRADOR.
-- Registro de produto, quantidade, motivo, observacao e custo unitario informado (em R$).
+- Registro de produto, quantidade, motivo, observacao e custo unitario informado (opcional, em R$).
 - O backend bloqueia a linha do produto, confirma o estoque esperado,
   desconta as unidades e insere o registro em **uma transacao**.
 - O backend usa `CurrentUserService.idOrNull()` para registrar o ID real de
@@ -35,7 +35,7 @@ Exemplo:
 ```
 
 Motivos aceitos pelo CHECK existente no SQL Server: OUTRO, PREPARO, DANIFICADO e VENCIMENTO. A API usa exatamente estes valores.
-O custo informado representa o custo do produto, **nao o preco de venda**.
+O custo informado representa o custo do produto, **nao o preco de venda**. Pode ser null quando desconhecido; o historico exibe custos ausentes e o resumo de 30 dias informa registrosSemCusto.
 A coluna `registrado_por` recebe BIGINT, e nao email/nome.
 O estoque esperado protege contra saldos desatualizados (HTTP 409).
 

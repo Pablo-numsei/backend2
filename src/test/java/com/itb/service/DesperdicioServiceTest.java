@@ -63,13 +63,6 @@ class DesperdicioServiceTest {
     }
 
     @Test
-    void rejectsMissingCostBeforeTouchingDatabase() {
-        var input = new DesperdicioCreateRequest(7L, 1, 10, "DANIFICADO", null, null);
-        assertThrows(IllegalArgumentException.class, () -> service.registrar(input, 1L));
-        verifyNoInteractions(jdbc);
-    }
-
-    @Test
     void rejectsNonMonetaryCostBeforeTouchingDatabase() {
         var input = new DesperdicioCreateRequest(7L, 1, 10, "DANIFICADO", null, new BigDecimal("0.001"));
         assertThrows(IllegalArgumentException.class, () -> service.registrar(input, 1L));
