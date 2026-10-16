@@ -9,6 +9,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -106,6 +107,14 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST,
                 message
         );
+    }
+
+    // Mantém o código HTTP de erros operacionais previstos, como SMTP não configurado (503).
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatusException(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        String message = ex.getReason() == null ? "Não foi possível processar a solicitação." : ex.getReason();
+        return buildResponse(status, message);
     }
 
     // 500 - erro inesperado
