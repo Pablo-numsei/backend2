@@ -43,6 +43,21 @@ class JwtServiceTest {
     }
 
     @Test
+    void resetLinkCannotAuthenticateAndTamperingIsRejected() {
+        Usuario user = staff();
+        user.setPasswordHash("synthetic-non-sensitive-hash");
+        String token = jwtService.generatePasswordResetToken(user);
+        var claims = jwtService.readPasswordResetToken(token);
+        assertNotNull(claims);
+        assertEquals(user.getId(), claims.usuarioId());
+        assertEquals(user.getEmail(), claims.email());
+        assertEquals(JwtService.passwordVersion(user.getPasswordHash()), claims.passwordVersion());
+        assertFalse(jwtService.isTokenValid(token));
+        assertFalse(jwtService.isOrderTokenValid(token, 41L));
+        assertNull(jwtService.readPasswordResetToken(tamperSignature(token)));
+    }
+
+    @Test
     void orderCapabilityCannotAuthenticateAsStaff() {
         String token = jwtService.generateOrderToken(41L);
 

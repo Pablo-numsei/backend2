@@ -243,6 +243,8 @@ class RequestRateLimitFilterTest {
     private static Stream<Arguments> limitedRoutes() {
         return Stream.of(
                 Arguments.of("/api/auth/login", 20),
+                Arguments.of("/api/auth/password-reset/request", 5),
+                Arguments.of("/api/auth/password-reset/confirm", 10),
                 Arguments.of("/api/mesas/contexto", 20),
                 Arguments.of("/api/push/subscriptions", 20),
                 Arguments.of("/api/pedidos", 60),

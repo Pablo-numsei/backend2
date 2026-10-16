@@ -60,7 +60,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/password-reset/request", "/api/auth/password-reset/confirm").permitAll()
                         .requestMatchers("/api/usuarios/**", "/api/perfis/**").hasRole("ADMINISTRADOR")
                         .requestMatchers("/api/v1/categorias", "/api/v1/categorias/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/mesas/*/qr").hasAnyRole("ADMINISTRADOR", "GARCOM")

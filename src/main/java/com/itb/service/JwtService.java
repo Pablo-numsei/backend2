@@ -15,6 +15,11 @@ import javax.crypto.SecretKey;
 import java.util.Date;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -27,6 +32,52 @@ public class JwtService {
 
     @Value("${jwt.order-expiration:86400000}")
     private long orderExpiration;
+
+    private static final long RESET_TTL_MS = 15 * 60 * 1000L;
+
+    /** Recovery links are signed, scoped to this purpose and invalidated when the password hash changes. */
+    public String generatePasswordResetToken(Usuario usuario) {
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(usuario.getEmail())
+                .claim("purpose", "password-reset")
+                .claim("usuarioId", usuario.getId())
+                .claim("passwordVersion", passwordVersion(usuario.getPasswordHash()))
+                .id(UUID.randomUUID().toString())
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + RESET_TTL_MS))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    public PasswordResetClaims readPasswordResetToken(String token) {
+        if (token == null || token.isBlank() || token.length() > 2048) return null;
+        try {
+            Claims claims = extractClaims(token);
+            Long id = claims.get("usuarioId", Long.class);
+            String version = claims.get("passwordVersion", String.class);
+            if (!"password-reset".equals(claims.get("purpose", String.class))
+                    || id == null || id <= 0 || version == null || version.isBlank()
+                    || claims.getSubject() == null || claims.getSubject().isBlank()
+                    || claims.getExpiration() == null || !claims.getExpiration().after(new Date())) return null;
+            return new PasswordResetClaims(id, claims.getSubject(), version);
+        } catch (Exception invalid) {
+            return null;
+        }
+    }
+
+    public static String passwordVersion(String passwordHash) {
+        if (passwordHash == null || passwordHash.isBlank()) throw new IllegalArgumentException("Hash ausente.");
+        try {
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(passwordHash.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("SHA-256 indisponível.", ex);
+        }
+    }
+
+    public record PasswordResetClaims(Long usuarioId, String email, String passwordVersion) {}
 
     private SecretKey getSigningKey() {
 
