@@ -25,7 +25,7 @@ public class PaymentController {
             @PathVariable Long orderId,
             @RequestHeader(value = "X-Order-Token", required = false) String orderToken
     ) {
-        orderAccessService.requireAccess(orderId, orderToken);
+        orderAccessService.requirePaymentAccess(orderId, orderToken);
         Payment payment = paymentService.getPayment(orderId);
         return ResponseEntity.ok(payment == null ? null : PaymentResponse.from(payment));
     }
@@ -36,7 +36,7 @@ public class PaymentController {
             @Valid @RequestBody PaymentRequest request,
             @RequestHeader(value = "X-Order-Token", required = false) String orderToken
     ) {
-        orderAccessService.requireAccess(orderId, orderToken);
+        orderAccessService.requirePaymentAccess(orderId, orderToken);
         return ResponseEntity.ok(PaymentResponse.from(paymentService.processPayment(orderId, request)));
     }
 
