@@ -26,6 +26,47 @@ class OrderAccessServiceTest {
 
     private Order order;
 
+    @Test
+    void kitchenCannotAccessPaymentsEvenWithCustomerCapability() {
+        when(currentUser.isStaff()).thenReturn(true);
+
+        assertThrows(AccessDeniedException.class,
+                () -> orderAccessService.requirePaymentAccess(41L, "order-41-token"));
+
+        verify(currentUser).hasAnyRole("ADMINISTRADOR", "GARCOM");
+        verifyNoInteractions(orderRepository, jwtService);
+    }
+
+    @Test
+    void authorizedOperationalStaffCanAccessPaymentWithoutOrderToken() {
+        when(currentUser.isStaff()).thenReturn(true);
+        when(currentUser.hasAnyRole("ADMINISTRADOR", "GARCOM")).thenReturn(true);
+        when(orderRepository.findById(41L)).thenReturn(Optional.of(order));
+
+        assertSame(order, orderAccessService.requirePaymentAccess(41L, null));
+
+        verifyNoInteractions(jwtService);
+    }
+
+    @Test
+    void anonymousCustomerCanAccessPaymentOnlyWithMatchingOrderCapability() {
+        when(jwtService.isOrderTokenValid("order-41-token", 41L)).thenReturn(true);
+        when(orderRepository.findById(41L)).thenReturn(Optional.of(order));
+
+        assertSame(order, orderAccessService.requirePaymentAccess(41L, "order-41-token"));
+        assertThrows(AccessDeniedException.class,
+                () -> orderAccessService.requirePaymentAccess(42L, "order-41-token"));
+        verify(orderRepository, never()).findById(42L);
+    }
+
+    @Test
+    void anonymousCustomerWithoutOrderCapabilityCannotAccessPayments() {
+        assertThrows(AccessDeniedException.class,
+                () -> orderAccessService.requirePaymentAccess(41L, null));
+
+        verifyNoInteractions(orderRepository);
+    }
+
     @BeforeEach
     void setUp() {
         order = new Order();
