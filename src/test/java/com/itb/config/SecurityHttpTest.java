@@ -6,6 +6,7 @@ import com.itb.controller.UsuarioController;
 import com.itb.dto.AvancarStatusRequest;
 import com.itb.dto.PedidoCreateRequest;
 import com.itb.dto.PaymentRequest;
+import com.itb.dto.PaymentResponse;
 import com.itb.exception.GlobalExceptionHandler;
 import com.itb.model.*;
 import com.itb.repository.OrderRepository;
@@ -93,6 +94,8 @@ class SecurityHttpTest {
         when(pedidos.avancarStatus(eq(42L), any(AvancarStatusRequest.class))).thenReturn(order);
         when(pedidos.criarPedido(any(PedidoCreateRequest.class))).thenReturn(order);
         Payment payment = payment();
+        when(payments.getPayment(42L)).thenReturn(payment);
+        when(payments.processPayment(eq(42L), any(PaymentRequest.class))).thenReturn(payment);
         when(payments.confirmPayment(eq(42L), anyString())).thenReturn(payment);
         when(payments.cancelPayment(eq(42L), anyString())).thenReturn(payment);
     }
