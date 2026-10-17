@@ -5,6 +5,8 @@ import com.itb.controller.PaymentController;
 import com.itb.controller.UsuarioController;
 import com.itb.dto.AvancarStatusRequest;
 import com.itb.dto.PedidoCreateRequest;
+import com.itb.dto.PaymentRequest;
+import com.itb.dto.PaymentResponse;
 import com.itb.exception.GlobalExceptionHandler;
 import com.itb.model.*;
 import com.itb.repository.OrderRepository;
@@ -92,6 +94,8 @@ class SecurityHttpTest {
         when(pedidos.avancarStatus(eq(42L), any(AvancarStatusRequest.class))).thenReturn(order);
         when(pedidos.criarPedido(any(PedidoCreateRequest.class))).thenReturn(order);
         Payment payment = payment();
+        when(payments.getPayment(42L)).thenReturn(payment);
+        when(payments.processPayment(eq(42L), any(PaymentRequest.class))).thenReturn(payment);
         when(payments.confirmPayment(eq(42L), anyString())).thenReturn(payment);
         when(payments.cancelPayment(eq(42L), anyString())).thenReturn(payment);
     }
@@ -190,6 +194,45 @@ class SecurityHttpTest {
         order.setDeletedAt(LocalDateTime.now());
         mvc.perform(get("/api/pedidos/42").header("X-Order-Token", jwt.generateOrderToken(42L)))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void kitchenCannotReadOrInitiatePaymentEvenWithGuestCapability() throws Exception {
+        String capability = jwt.generateOrderToken(42L);
+        mvc.perform(get("/api/payments/42").header("Authorization", bearer("COZINHA")))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/payments/42/process").header("Authorization", bearer("COZINHA"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"method\":\"PIX\"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/payments/42").header("Authorization", bearer("COZINHA"))
+                        .header("X-Order-Token", capability))
+                .andExpect(status().isForbidden());
+        verify(payments, never()).getPayment(anyLong());
+        verify(payments, never()).processPayment(anyLong(), any());
+    }
+
+    @Test
+    void guestCapabilityStillAllowsReadingAndInitiatingOwnPayment() throws Exception {
+        String capability = jwt.generateOrderToken(42L);
+        mvc.perform(get("/api/payments/42").header("X-Order-Token", capability))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/payments/42/process").header("X-Order-Token", capability)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"method\":\"PIX\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/payments/42").header("X-Order-Token", jwt.generateOrderToken(43L)))
+                .andExpect(status().isForbidden());
+        verify(payments).processPayment(eq(42L), any(PaymentRequest.class));
+    }
+
+    @Test
+    void administratorAndWaiterRetainPaymentAccess() throws Exception {
+        for (String role : List.of("ADMINISTRADOR", "GARCOM")) {
+            mvc.perform(get("/api/payments/42").header("Authorization", bearer(role)))
+                    .andExpect(status().isOk());
+            mvc.perform(post("/api/payments/42/process").header("Authorization", bearer(role))
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"method\":\"PIX\"}"))
+                    .andExpect(status().isOk());
+        }
     }
 
     @Test
