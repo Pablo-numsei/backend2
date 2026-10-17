@@ -211,6 +211,73 @@ class SecurityHttpTest {
     }
 
     @Test
+    void kitchenCannotReadOrInitiatePaymentEvenWithCustomerCapability() throws Exception {
+        for (String token : List.of("", jwt.generateOrderToken(42L))) {
+            mvc.perform(get("/api/payments/42").header("Authorization", bearer("COZINHA"))
+                            .header("X-Order-Token", token))
+                    .andExpect(status().isForbidden());
+            mvc.perform(post("/api/payments/42/process").header("Authorization", bearer("COZINHA"))
+                            .header("X-Order-Token", token)
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"method\":\"PIX\"}"))
+                    .andExpect(status().isForbidden());
+        }
+        verify(payments, never()).getPayment(anyLong());
+        verify(payments, never()).processPayment(anyLong(), any());
+    }
+
+    @Test
+    void anonymousCustomerCanReadAndInitiatePaymentWithMatchingOrderToken() throws Exception {
+        Payment pending = payment();
+        pending.setStatus("PENDENTE");
+        when(payments.getPayment(42L)).thenReturn(pending);
+        when(payments.processPayment(eq(42L), any(com.itb.dto.PaymentRequest.class))).thenReturn(pending);
+
+        String token = jwt.generateOrderToken(42L);
+        mvc.perform(get("/api/payments/42").header("X-Order-Token", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.orderId").value(42));
+        mvc.perform(post("/api/payments/42/process").header("X-Order-Token", token)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"method\":\"PIX\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDENTE"));
+
+        verify(payments).getPayment(42L);
+        verify(payments).processPayment(eq(42L), any(com.itb.dto.PaymentRequest.class));
+    }
+
+    @Test
+    void absentMismatchedOrExpiredCustomerTokensCannotAccessPayments() throws Exception {
+        String expired = Jwts.builder().subject("order:42").claim("purpose", "order-access")
+                .claim("orderId", 42L).expiration(new Date(System.currentTimeMillis() - 1000))
+                .signWith(Keys.hmacShaKeyFor(Decoders.BASE64.decode(TEST_SECRET))).compact();
+        for (String token : List.of("", jwt.generateOrderToken(43L), "invalid", expired)) {
+            mvc.perform(get("/api/payments/42").header("X-Order-Token", token))
+                    .andExpect(status().isForbidden());
+            mvc.perform(post("/api/payments/42/process").header("X-Order-Token", token)
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"method\":\"PIX\"}"))
+                    .andExpect(status().isForbidden());
+        }
+        verify(payments, never()).getPayment(anyLong());
+        verify(payments, never()).processPayment(anyLong(), any());
+    }
+
+    @Test
+    void administratorAndWaiterCanReadAndInitiatePaymentWithoutCustomerToken() throws Exception {
+        Payment pending = payment();
+        pending.setStatus("PENDENTE");
+        when(payments.getPayment(42L)).thenReturn(pending);
+        when(payments.processPayment(eq(42L), any(com.itb.dto.PaymentRequest.class))).thenReturn(pending);
+
+        for (String role : List.of("ADMINISTRADOR", "GARCOM")) {
+            mvc.perform(get("/api/payments/42").header("Authorization", bearer(role)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.orderId").value(42));
+            mvc.perform(post("/api/payments/42/process").header("Authorization", bearer(role))
+                            .contentType(MediaType.APPLICATION_JSON).content("{\"method\":\"PIX\"}"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PENDENTE"));
+        }
+        verify(payments, times(2)).getPayment(42L);
+        verify(payments, times(2)).processPayment(eq(42L), any(com.itb.dto.PaymentRequest.class));
+    }
+
+    @Test
     void waiterAndAdministratorCanConfirmPaymentsUsingAuthenticatedIdentity() throws Exception {
         for (String role : List.of("GARCOM", "ADMINISTRADOR")) {
             mvc.perform(post("/api/payments/42/confirm").header("Authorization", bearer(role)))
