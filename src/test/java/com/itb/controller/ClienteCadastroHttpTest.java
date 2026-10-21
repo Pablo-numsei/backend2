@@ -34,7 +34,7 @@ class ClienteCadastroHttpTest {
     @MockBean private ClienteCadastroService cadastro;
 
     private static final String VALID = """
-        {"nomeUsuario":"cliente.tcc","email":"cliente@example.test","senha":"minha-senha-forte-123"}
+        {"nomeUsuario":"cliente.tcc","pin":"0472"}
         """;
 
     @Test
@@ -45,7 +45,7 @@ class ClienteCadastroHttpTest {
                         .contentType(MediaType.APPLICATION_JSON).content(VALID))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.nomeUsuario").value("cliente.tcc"))
-                .andExpect(jsonPath("$.senha").doesNotExist())
+                .andExpect(jsonPath("$.pin").doesNotExist())
                 .andExpect(jsonPath("$.passwordHash").doesNotExist())
                 .andExpect(jsonPath("$.perfil").doesNotExist())
                 .andExpect(jsonPath("$.token").doesNotExist());
@@ -55,7 +55,7 @@ class ClienteCadastroHttpTest {
     @Test
     void invalidAndWeakCredentialsCannotBeRegistered() throws Exception {
         mvc.perform(post("/api/clientes/cadastro").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nomeUsuario\":\"a\",\"email\":\"errado\",\"senha\":\"123\"}"))
+                        .content("{\"nomeUsuario\":\"a\",\"pin\":\"123\"}"))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(cadastro);
     }
