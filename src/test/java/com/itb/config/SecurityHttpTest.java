@@ -280,13 +280,14 @@ class SecurityHttpTest {
         mvc.perform(post("/api/pedidos").contentType(MediaType.APPLICATION_JSON)
                         .header("X-Table-Token", tableContextToken())
                         .header("X-Customer-Token", "valid-customer-token")
-                        .content("{\"mesaId\":3,\"criadoPor\":999,\"clienteId\":999,\"nomeCliente\":\"Atacante\",\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
+                        .content("{\"mesaId\":3,\"criadoPor\":999,\"clienteId\":999,\"nomeCliente\":\"Atacante\",\"observacoes\":\"carne bem passada\",\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.accessToken").isString());
         ArgumentCaptor<PedidoCreateRequest> request = ArgumentCaptor.forClass(PedidoCreateRequest.class);
         verify(pedidos).criarPedido(request.capture());
         assertNull(request.getValue().criadoPor());
         assertEquals(27L, request.getValue().clienteId());
         assertEquals("pablo123", request.getValue().nomeCliente());
+        assertEquals("carne bem passada", request.getValue().observacoes());
     }
 
     @Test
