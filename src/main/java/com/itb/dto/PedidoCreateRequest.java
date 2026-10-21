@@ -23,10 +23,18 @@ public record PedidoCreateRequest(
         // Overwritten by the server; never trust client-supplied identities.
         Long clienteId,
 
-        String nomeCliente
+        String nomeCliente,
+
+        @Size(max = 255, message = "A observação aceita no máximo 255 caracteres")
+        String observacoes
 
 ) {
     public PedidoCreateRequest(Long mesaId, Long criadoPor, List<ItemPedidoRequest> itens) {
-        this(mesaId, criadoPor, itens, null, null);
+        this(mesaId, criadoPor, itens, null, null, null);
+    }
+
+    public PedidoCreateRequest(Long mesaId, Long criadoPor, List<ItemPedidoRequest> itens,
+                               Long clienteId, String nomeCliente) {
+        this(mesaId, criadoPor, itens, clienteId, nomeCliente, null);
     }
 }
