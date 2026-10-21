@@ -56,7 +56,15 @@ public class OrderController {
             @RequestHeader(value = "X-Customer-Token", required = false) String customerToken) {
         tableAccessService.requireWriteAccess(request.mesaId(), tableToken);
         Long staffId = currentUser.idOrNull();
+        if (staffId == null && (customerToken == null || customerToken.isBlank())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.UNAUTHORIZED, "Entre com usuário e PIN para fazer pedidos.");
+        }
         Cliente cliente = staffId == null ? clienteAuth.requireCustomer(customerToken) : null;
+        if (staffId == null && cliente == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.UNAUTHORIZED, "Sessão de cliente inválida.");
+        }
         // No forged staff id or customer id from the HTTP body is ever trusted.
         Order order = pedidoService.criarPedido(new PedidoCreateRequest(
                 request.mesaId(), staffId, request.itens(),
