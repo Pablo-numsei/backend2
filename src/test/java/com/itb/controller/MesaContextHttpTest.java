@@ -10,6 +10,7 @@ import com.itb.dto.MesaResponse;
 import com.itb.dto.PedidoCreateRequest;
 import com.itb.exception.GlobalExceptionHandler;
 import com.itb.model.Mesa;
+import com.itb.model.Cliente;
 import com.itb.model.Order;
 import com.itb.model.Perfil;
 import com.itb.model.StatusPedido;
@@ -20,6 +21,7 @@ import com.itb.repository.UsuarioRepository;
 import com.itb.service.AtendimentoService;
 import com.itb.service.CurrentUserService;
 import com.itb.service.CustomUserDetailsService;
+import com.itb.service.ClienteAuthService;
 import com.itb.service.JwtService;
 import com.itb.service.MesaService;
 import com.itb.service.OrderAccessService;
@@ -68,6 +70,7 @@ class MesaContextHttpTest {
     @MockBean private UsuarioRepository usuarioRepository;
     @MockBean private CustomUserDetailsService users;
     @MockBean private PedidoService pedidos;
+    @MockBean private ClienteAuthService clienteAuth;
     @MockBean private AtendimentoService atendimentos;
     private Mesa mesa;
 
@@ -98,6 +101,10 @@ class MesaContextHttpTest {
         order.setStatus(status);
         when(orderRepository.findById(42L)).thenReturn(Optional.of(order));
         when(pedidos.criarPedido(any(PedidoCreateRequest.class))).thenReturn(order);
+        Cliente cliente = new Cliente();
+        cliente.setId(27L);
+        cliente.setUsername("cliente.tcc");
+        when(clienteAuth.requireCustomer("synthetic-customer-session")).thenReturn(cliente);
         when(atendimentos.criar(any(AtendimentoCreateRequest.class))).thenAnswer(invocation -> {
             AtendimentoCreateRequest request = invocation.getArgument(0);
             return new AtendimentoResponse(8L, request.mesaId(), 7, request.pedidoId(), request.tipo(),
@@ -189,7 +196,9 @@ class MesaContextHttpTest {
 
     @Test
     void validTableContextCreatesOrderAndReceivesSeparateOrderCapability() throws Exception {
-        mvc.perform(post("/api/pedidos").contentType(MediaType.APPLICATION_JSON).header("X-Table-Token", tableToken())
+        mvc.perform(post("/api/pedidos").contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Customer-Token", "synthetic-customer-session")
+                        .header("X-Table-Token", tableToken())
                         .content(orderBody(3)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(42))
                 .andExpect(jsonPath("$.mesa.id").value(3)).andExpect(jsonPath("$.accessToken").isString());
