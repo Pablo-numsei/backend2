@@ -2,7 +2,6 @@ package com.itb.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itb.model.Order;
-import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,6 +65,9 @@ public class WhatsAppNotificationService {
     public static String normalizeBrPhone(String input) {
         if (input == null || input.isBlank()) {
             throw new IllegalArgumentException("Informe um telefone para receber atualizações no WhatsApp.");
+        }
+        if (!input.matches("^[+()0-9\\s-]+$")) {
+            throw new IllegalArgumentException("Digite somente números e pontuação de telefone.");
         }
         String digits = input.replaceAll("[^0-9]", "");
         if (digits.length() == 10 || digits.length() == 11) digits = "55" + digits;
@@ -147,6 +149,7 @@ public class WhatsAppNotificationService {
             log.warn("WhatsApp: fila indisponível; tentando novamente mais tarde.");
             return;
         }
+        batch.sort(java.util.Comparator.comparingLong(Pending::id));
         for (Pending item : batch) {
             dispatch(item);
         }
