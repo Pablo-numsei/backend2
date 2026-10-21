@@ -1,5 +1,6 @@
 package com.itb.service;
 
+import com.itb.model.Cliente;
 import com.itb.model.Perfil;
 import com.itb.model.Usuario;
 import io.jsonwebtoken.Jwts;
@@ -27,6 +28,7 @@ class JwtServiceTest {
         ReflectionTestUtils.setField(jwtService, "secret", Base64.getEncoder().encodeToString(TEST_KEY));
         ReflectionTestUtils.setField(jwtService, "expiration", 60000L);
         ReflectionTestUtils.setField(jwtService, "orderExpiration", 60000L);
+        ReflectionTestUtils.setField(jwtService, "customerExpiration", 60000L);
     }
 
     @Test
@@ -40,6 +42,20 @@ class JwtServiceTest {
         assertEquals("admin@tablehub.test", jwtService.extractEmail(token));
         assertEquals(7L, claims.get("usuarioId", Long.class));
         assertEquals("ADMINISTRADOR", claims.get("perfil", String.class));
+    }
+
+    @Test
+    void customerPinTokenNeverGrantsStaffOrOrderAccess() {
+        Cliente cliente = new Cliente();
+        cliente.setId(27L);
+        cliente.setUsername("pablo123");
+        String token = jwtService.generateCustomerToken(cliente);
+        assertNotNull(jwtService.readCustomerToken(token));
+        assertEquals("pablo123", jwtService.readCustomerToken(token).username());
+        assertFalse(jwtService.isTokenValid(token));
+        assertFalse(jwtService.isOrderTokenValid(token, 42L));
+        assertNull(jwtService.readCustomerToken(jwtService.generateToken(staff())));
+        assertNull(jwtService.readCustomerToken(tamperSignature(token)));
     }
 
     @Test
