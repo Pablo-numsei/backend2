@@ -286,7 +286,7 @@ class SecurityHttpTest {
     void guestOrderRequiresANameAfterChoosingItems() throws Exception {
         mvc.perform(post("/api/pedidos").contentType(MediaType.APPLICATION_JSON)
                         .header("X-Table-Token", tableContextToken())
-                        .content("{\\"mesaId\\":3,\\"itens\\":[{\\"produtoId\\":8,\\"quantidade\\":1}]}"))
+                        .content("{\"mesaId\":3,\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
                 .andExpect(status().isBadRequest());
         verify(pedidos, never()).criarPedido(any());
     }
