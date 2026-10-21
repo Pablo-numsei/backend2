@@ -3,6 +3,8 @@ package com.itb.dto;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itb.model.*;
+import java.time.LocalDateTime;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -34,6 +36,23 @@ class PublicOrderResponseTest {
         assertFalse(json.has("accessToken"));
         assertEquals("guest-token", mapper.valueToTree(OrderResponse.from(order, "guest-token"))
                 .get("accessToken").asText());
+    }
+
+    @Test
+    void createdAtUtcIsProjectedAsRealUtcInstantWithKitchenNotes() {
+        Order order = new Order();
+        order.setId(7L);
+        order.setCustomerName("pabloteste01");
+        order.setObservacoes("carne bem passada");
+        order.setCreatedAt(LocalDateTime.of(2026, 10, 21, 18, 45));
+        order.setCreatedAtUtc(LocalDateTime.of(2026, 10, 21, 23, 45));
+
+        OrderResponse response = OrderResponse.from(order);
+        assertEquals(Instant.parse("2026-10-21T23:45:00Z"), response.createdAtUtc());
+        assertEquals("carne bem passada", response.observacoes());
+        assertEquals("pabloteste01", response.nomeCliente());
+        // Original server-local timestamp is never silently rewritten.
+        assertEquals(LocalDateTime.of(2026, 10, 21, 18, 45), response.createdAt());
     }
 
     @Test
