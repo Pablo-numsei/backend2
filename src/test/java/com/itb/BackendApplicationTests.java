@@ -32,6 +32,7 @@ class BackendApplicationTests {
     @MockBean private JdbcTemplate jdbc;
     @MockBean private EntityManager entityManager;
     @MockBean private UsuarioRepository usuarios;
+    @MockBean private ClienteRepository clientes;
     @MockBean private PerfilRepository perfis;
     @MockBean private OrderRepository pedidos;
     @MockBean private ItemPedidoRepository itens;
