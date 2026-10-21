@@ -29,8 +29,30 @@ BEGIN
     IF EXISTS (SELECT 1 FROM sys.key_constraints
                WHERE name = N'UQ_Clientes_Email' AND parent_object_id = OBJECT_ID(N'dbo.Clientes'))
         ALTER TABLE dbo.Clientes DROP CONSTRAINT UQ_Clientes_Email;
-    ALTER TABLE dbo.Clientes ALTER COLUMN email NVARCHAR(180) COLLATE Latin1_General_100_CI_AI NULL;
-    ALTER TABLE dbo.Clientes ALTER COLUMN senha_hash NVARCHAR(255) NULL;
+    -- Migration is repeatable: do not ALTER nullable columns on subsequent runs.
+    -- A previously generated email index must be dropped only if this column
+    -- still needs to change, otherwise SQL Server throws Msg 5074/4922.
+    IF EXISTS (
+        SELECT 1 FROM sys.columns
+        WHERE object_id = OBJECT_ID(N'dbo.Clientes')
+          AND name = N'email' AND is_nullable = 0
+    )
+    BEGIN
+        IF EXISTS (
+            SELECT 1 FROM sys.indexes
+            WHERE object_id = OBJECT_ID(N'dbo.Clientes')
+              AND name = N'UX_Clientes_Email_NaoNulo'
+        )
+            DROP INDEX UX_Clientes_Email_NaoNulo ON dbo.Clientes;
+        ALTER TABLE dbo.Clientes ALTER COLUMN email NVARCHAR(180) COLLATE Latin1_General_100_CI_AI NULL;
+    END;
+
+    IF EXISTS (
+        SELECT 1 FROM sys.columns
+        WHERE object_id = OBJECT_ID(N'dbo.Clientes')
+          AND name = N'senha_hash' AND is_nullable = 0
+    )
+        ALTER TABLE dbo.Clientes ALTER COLUMN senha_hash NVARCHAR(255) NULL;
 END;
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.Clientes')
