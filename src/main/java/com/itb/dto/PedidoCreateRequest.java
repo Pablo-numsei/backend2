@@ -18,7 +18,19 @@ public record PedidoCreateRequest(
 
         @NotEmpty(message = "O pedido precisa ter pelo menos um item")
         @Size(max = 50, message = "O pedido aceita no máximo 50 itens distintos")
-        List<@NotNull @Valid ItemPedidoRequest> itens
+        List<@NotNull @Valid ItemPedidoRequest> itens,
+
+        @Size(max = 80, message = "Nome do cliente muito longo.")
+        String nomeCliente,
+
+        @Size(max = 20, message = "Telefone muito longo.")
+        String telefone,
+
+        Boolean receberWhatsApp
 
 ) {
+    /** Compatibilidade com integrações internas da equipe. */
+    public PedidoCreateRequest(Long mesaId, Long criadoPor, List<ItemPedidoRequest> itens) {
+        this(mesaId, criadoPor, itens, null, null, false);
+    }
 }

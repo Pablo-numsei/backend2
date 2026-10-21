@@ -31,11 +31,25 @@ public class PedidoService {
     private final StatusPedidoRepository statusPedidoRepository;
     private final SocketService socketService;
     private final PushNotificationService pushNotificationService;
+    private final WhatsAppNotificationService whatsAppNotificationService;
 
     // =========================
     // CRIAR PEDIDO
     // =========================
     public Order criarPedido(PedidoCreateRequest request) {
+
+        String nome = request.nomeCliente() == null ? null : request.nomeCliente().trim();
+        if (nome != null && !nome.isEmpty()
+                && (nome.length() < 2 || nome.length() > 80
+                || nome.codePoints().anyMatch(Character::isISOControl))) {
+            throw new IllegalArgumentException("Informe um nome válido de 2 a 80 caracteres.");
+        }
+
+        boolean whatsapp = Boolean.TRUE.equals(request.receberWhatsApp());
+        String numero = whatsapp ? WhatsAppNotificationService.normalizeBrPhone(request.telefone()) : null;
+        if (whatsapp && !whatsAppNotificationService.isConfigured()) {
+            throw new IllegalStateException("Atualizações pelo WhatsApp indisponíveis.");
+        }
 
         if (request.itens().stream().map(ItemPedidoRequest::produtoId).distinct().count() != request.itens().size()) {
             throw new IllegalArgumentException("Agrupe as quantidades de produtos repetidos antes de enviar o pedido.");
@@ -89,7 +103,7 @@ public class PedidoService {
         );
 
         sql.append(
-                "@id_pedido = @id_pedido OUTPUT; "
+                "@id_pedido = @id_pedido OUTPUT, @nome_cliente = ?, @telefone_cliente = ?, @whatsapp_consentimento = ?; "
         );
 
         sql.append(
@@ -106,6 +120,10 @@ public class PedidoService {
                         request.criadoPor()
                 )
         );
+
+        parametros.add(new SqlParameterValue(Types.NVARCHAR, nome));
+        parametros.add(new SqlParameterValue(Types.VARCHAR, numero));
+        parametros.add(whatsapp);
 
         Object[] args =
                 parametros.toArray();
@@ -170,6 +188,9 @@ try {
                                 "Pedido criado, mas não encontrado"
                         )
                 );
+
+        // Enfileiramento persistente; falhas de WhatsApp nunca desfazem o pedido.
+        whatsAppNotificationService.queueOrderStatus(pedido);
 
         // Atualiza os clientes conectados via WebSocket
         socketService.notifyOrderUpdate(
@@ -278,6 +299,7 @@ try {
         pushNotificationService.notifyOrderStatus(
                 pedidoAtualizado
         );
+        whatsAppNotificationService.queueOrderStatus(pedidoAtualizado);
 
         return pedidoAtualizado;
     }

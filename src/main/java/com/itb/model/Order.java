@@ -47,6 +47,18 @@ public class Order {
     @JoinColumn(name = "alterado_por")
     private Usuario updatedBy;
 
+    @Column(name = "nome_cliente", length = 80)
+    private String customerName;
+
+    @Column(name = "whatsapp_numero", length = 16)
+    private String whatsAppPhone;
+
+    @Column(name = "whatsapp_consentimento")
+    private Boolean whatsAppConsent;
+
+    @Column(name = "whatsapp_consentido_em")
+    private LocalDateTime whatsAppConsentedAt;
+
     @Column(name = "excluido_em")
     private LocalDateTime deletedAt;
 }

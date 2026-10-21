@@ -61,7 +61,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/password-reset/request", "/api/auth/password-reset/confirm", "/api/clientes/cadastro", "/api/clientes/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/clientes/me").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/clientes/me", "/api/whatsapp/status").permitAll()
+                        // Order access token is verified in OrderController, NOT a customer/staff JWT.
+                        .requestMatchers(HttpMethod.POST, "/api/pedidos/*/whatsapp/cancelar").permitAll()
                         .requestMatchers("/api/usuarios/**", "/api/perfis/**").hasRole("ADMINISTRADOR")
                         .requestMatchers("/api/v1/categorias", "/api/v1/categorias/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/mesas/*/qr").hasAnyRole("ADMINISTRADOR", "GARCOM")
