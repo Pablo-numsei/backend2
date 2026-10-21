@@ -1,6 +1,7 @@
 package com.itb.service;
 
 import com.itb.model.Usuario;
+import com.itb.model.Cliente;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -32,6 +33,9 @@ public class JwtService {
 
     @Value("${jwt.order-expiration:86400000}")
     private long orderExpiration;
+
+    @Value("${jwt.customer-expiration:3600000}")
+    private long customerExpiration;
 
     private static final long RESET_TTL_MS = 15 * 60 * 1000L;
 
@@ -132,6 +136,35 @@ public class JwtService {
             return false;
         }
     }
+
+    /** Customer credentials are a separate JWT purpose, never accepted as staff access. */
+    public String generateCustomerToken(Cliente cliente) {
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(cliente.getEmail())
+                .claim("purpose", "customer")
+                .claim("clienteId", cliente.getId())
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + customerExpiration))
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    /** Returns null for staff, order, reset or expired tokens. */
+    public CustomerTokenClaims readCustomerToken(String token) {
+        if (token == null || token.isBlank() || token.length() > 4096) return null;
+        try {
+            Claims claims = extractClaims(token);
+            Long id = claims.get("clienteId", Long.class);
+            if (!"customer".equals(claims.get("purpose", String.class))
+                    || id == null || id <= 0
+                    || claims.getSubject() == null || claims.getSubject().isBlank()
+                    || claims.getExpiration() == null || !claims.getExpiration().after(new Date())) return null;
+            return new CustomerTokenClaims(id, claims.getSubject());
+        } catch (Exception invalidToken) { return null; }
+    }
+
+    public record CustomerTokenClaims(Long clienteId, String email) {}
 
     public String generateOrderToken(Long orderId) {
         Date now = new Date();
