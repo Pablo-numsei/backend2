@@ -141,7 +141,7 @@ public class JwtService {
     public String generateCustomerToken(Cliente cliente) {
         Date now = new Date();
         return Jwts.builder()
-                .subject(cliente.getEmail())
+                .subject(cliente.getUsername())
                 .claim("purpose", "customer")
                 .claim("clienteId", cliente.getId())
                 .issuedAt(now)
@@ -164,7 +164,7 @@ public class JwtService {
         } catch (Exception invalidToken) { return null; }
     }
 
-    public record CustomerTokenClaims(Long clienteId, String email) {}
+    public record CustomerTokenClaims(Long clienteId, String username) {}
 
     public String generateOrderToken(Long orderId) {
         Date now = new Date();
