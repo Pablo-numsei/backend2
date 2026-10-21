@@ -59,6 +59,7 @@ class SecurityHttpTest {
     @MockBean private OrderRepository orderRepository;
     @MockBean private MesaRepository mesaRepository;
     @MockBean private PedidoService pedidos;
+    @MockBean private ClienteAuthService clienteAuth;
     @MockBean private PaymentService payments;
     @MockBean private EntityManager entityManager;
     private Order order;
@@ -91,6 +92,10 @@ class SecurityHttpTest {
         when(orderRepository.findByDeletedAtIsNullOrderByCreatedAtAsc()).thenReturn(List.of(order));
         when(pedidos.avancarStatus(eq(42L), any(AvancarStatusRequest.class))).thenReturn(order);
         when(pedidos.criarPedido(any(PedidoCreateRequest.class))).thenReturn(order);
+        Cliente cliente = new Cliente();
+        cliente.setId(27L);
+        cliente.setUsername("pablo123");
+        when(clienteAuth.requireCustomer("valid-customer-token")).thenReturn(cliente);
         Payment payment = payment();
         when(payments.confirmPayment(eq(42L), anyString())).thenReturn(payment);
         when(payments.cancelPayment(eq(42L), anyString())).thenReturn(payment);
@@ -274,11 +279,23 @@ class SecurityHttpTest {
     void newOrderReceivesCapabilityAndIgnoresForgedStaffId() throws Exception {
         mvc.perform(post("/api/pedidos").contentType(MediaType.APPLICATION_JSON)
                         .header("X-Table-Token", tableContextToken())
-                        .content("{\"mesaId\":3,\"criadoPor\":999,\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
+                        .header("X-Customer-Token", "valid-customer-token")
+                        .content("{\"mesaId\":3,\"criadoPor\":999,\"clienteId\":999,\"nomeCliente\":\"Atacante\",\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.accessToken").isString());
         ArgumentCaptor<PedidoCreateRequest> request = ArgumentCaptor.forClass(PedidoCreateRequest.class);
         verify(pedidos).criarPedido(request.capture());
         assertNull(request.getValue().criadoPor());
+        assertEquals(27L, request.getValue().clienteId());
+        assertEquals("pablo123", request.getValue().nomeCliente());
+    }
+
+    @Test
+    void guestCannotSendOrderWithOnlyQrCodeAndNoPinSession() throws Exception {
+        mvc.perform(post("/api/pedidos").contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Table-Token", tableContextToken())
+                        .content("{\"mesaId\":3,\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
+                .andExpect(status().isUnauthorized());
+        verify(pedidos, never()).criarPedido(any());
     }
 
     @Test
