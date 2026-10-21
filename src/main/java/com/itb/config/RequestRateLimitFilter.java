@@ -51,11 +51,12 @@ public class RequestRateLimitFilter extends OncePerRequestFilter {
         boolean resetRequest = path.equals("/api/auth/password-reset/request");
         boolean resetConfirm = path.equals("/api/auth/password-reset/confirm");
         boolean customerSignup = path.equals("/api/clientes/cadastro");
-        int limit = resetRequest ? 5 : resetConfirm ? 10 : customerSignup ? 10 :
+        boolean customerLogin = path.equals("/api/clientes/login");
+        int limit = resetRequest ? 5 : resetConfirm ? 10 : customerSignup || customerLogin ? 10 :
                 path.equals("/api/auth/login") || path.equals("/api/mesas/contexto")
                 || pushSubscription ? 20 : 60;
         boolean limited = "POST".equals(request.getMethod()) &&
-                (path.equals("/api/auth/login") || resetRequest || resetConfirm || customerSignup || path.equals("/api/mesas/contexto") || path.equals("/api/pedidos") ||
+                (path.equals("/api/auth/login") || resetRequest || resetConfirm || customerSignup || customerLogin || path.equals("/api/mesas/contexto") || path.equals("/api/pedidos") ||
                  path.equals("/api/atendimentos") || pushSubscription);
         if (limited && !allow(request.getRemoteAddr() + ":" + path, limit)) {
             response.setHeader("Retry-After", "60");
