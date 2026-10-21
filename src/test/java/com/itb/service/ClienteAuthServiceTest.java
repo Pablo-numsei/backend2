@@ -10,9 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.server.ResponseStatusException;
-
 import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -20,60 +18,58 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ClienteAuthServiceTest {
     @Mock private ClienteRepository clientes;
-    @Mock private org.springframework.security.crypto.password.PasswordEncoder passwords;
+    @Mock private ClientePinService pins;
     @Mock private JwtService jwt;
     @InjectMocks private ClienteAuthService service;
 
     private Cliente customer() {
-        Cliente cliente = new Cliente();
-        cliente.setId(27L);
-        cliente.setEmail("cliente@example.test");
-        cliente.setUsername("cliente.tcc");
-        cliente.setPasswordHash("hash-bcrypt");
-        return cliente;
+        Cliente c = new Cliente();
+        c.setId(27L);
+        c.setUsername("pablo123");
+        c.setPinHash("slow-hash");
+        return c;
     }
 
     @Test
-    void loginReturnsOnlyCustomerIdentityAndScopedToken() {
-        Cliente cliente = customer();
-        when(clientes.findByEmailIgnoreCase("cliente@example.test")).thenReturn(Optional.of(cliente));
-        when(passwords.matches("minha-senha-forte-123", cliente.getPasswordHash())).thenReturn(true);
-        when(jwt.generateCustomerToken(cliente)).thenReturn("customer.jwt.token");
-
-        var response = service.login(new ClienteLoginRequest(" CLIENTE@EXAMPLE.TEST ", "minha-senha-forte-123"));
-
-        assertEquals(27L, response.id());
-        assertEquals("cliente.tcc", response.nomeUsuario());
-        assertEquals("customer.jwt.token", response.token());
+    void loginChecksUsernameAndIssuesCustomerOnlyToken() {
+        Cliente c = customer();
+        when(clientes.findByUsernameIgnoreCase("pablo123")).thenReturn(Optional.of(c));
+        when(pins.matches("pablo123", "0472", "slow-hash")).thenReturn(true);
+        when(jwt.generateCustomerToken(c)).thenReturn("signed.customer.token");
+        var response = service.login(new ClienteLoginRequest(" PABLO123 ", "0472"));
+        assertEquals("pablo123", response.nomeUsuario());
+        assertEquals("signed.customer.token", response.token());
         verify(jwt, never()).generateToken(any());
     }
 
     @Test
-    void invalidPasswordDoesNotIssueCustomerOrStaffToken() {
-        Cliente cliente = customer();
-        when(clientes.findByEmailIgnoreCase("cliente@example.test")).thenReturn(Optional.of(cliente));
-        when(passwords.matches("senha-errada-123", cliente.getPasswordHash())).thenReturn(false);
-        assertThrows(BadCredentialsException.class,
-                () -> service.login(new ClienteLoginRequest("cliente@example.test", "senha-errada-123")));
+    void invalidPinNeverIssuesTokenAndLocksAfterFiveAttempts() {
+        Cliente c = customer();
+        when(clientes.findByUsernameIgnoreCase("pablo123")).thenReturn(Optional.of(c));
+        for (int i = 0; i < 5; i++) {
+            assertThrows(BadCredentialsException.class,
+                    () -> service.login(new ClienteLoginRequest("pablo123", "0000")));
+        }
+        assertThrows(ResponseStatusException.class,
+                () -> service.login(new ClienteLoginRequest("pablo123", "0000")));
         verify(jwt, never()).generateCustomerToken(any());
-        verify(jwt, never()).generateToken(any());
     }
 
     @Test
-    void rejectsPasswordLongerThanBcryptUtf8Limit() {
-        assertThrows(BadCredentialsException.class,
-                () -> service.login(new ClienteLoginRequest("cliente@example.test", "á".repeat(37))));
-        verifyNoInteractions(clientes, passwords, jwt);
-    }
-
-    @Test
-    void meRequiresCustomerPurposeAndMatchingActiveIdentity() {
-        assertThrows(ResponseStatusException.class, () -> service.profile("Bearer staff.jwt.token"));
-        when(jwt.readCustomerToken("customer.jwt.token"))
-                .thenReturn(new JwtService.CustomerTokenClaims(27L, "cliente@example.test"));
+    void onlySignedExistingAndMatchedCustomerCanPlaceOrder() {
+        assertThrows(ResponseStatusException.class, () -> service.requireCustomer("staff.jwt.token"));
+        when(jwt.readCustomerToken("signed.customer.token"))
+                .thenReturn(new JwtService.CustomerTokenClaims(27L, "pablo123"));
         when(clientes.findById(27L)).thenReturn(Optional.of(customer()));
-        var profile = service.profile("Bearer customer.jwt.token");
-        assertEquals(27L, profile.id());
-        assertEquals("cliente.tcc", profile.nomeUsuario());
+        assertEquals(27L, service.requireCustomer("signed.customer.token").getId());
+    }
+
+    @Test
+    void customerTokenWithOtherUsernameIsRejected() {
+        when(jwt.readCustomerToken("signed.customer.token"))
+                .thenReturn(new JwtService.CustomerTokenClaims(27L, "impostor"));
+        when(clientes.findById(27L)).thenReturn(Optional.of(customer()));
+        assertThrows(ResponseStatusException.class,
+                () -> service.requireCustomer("signed.customer.token"));
     }
 }
