@@ -1,69 +1,56 @@
 package com.itb.service;
 
 import com.itb.dto.ClienteCadastroRequest;
-import com.itb.dto.ClienteCadastroResponse;
 import com.itb.model.Cliente;
 import com.itb.repository.ClienteRepository;
-import com.itb.repository.UsuarioRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import java.nio.charset.StandardCharsets;
-
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ClienteCadastroServiceTest {
     @Mock private ClienteRepository clientes;
-    @Mock private UsuarioRepository funcionarios;
-    @Mock private PasswordEncoder encoder;
+    @Mock private ClientePinService pins;
     @InjectMocks private ClienteCadastroService service;
 
     @Test
-    void registersInSeparateTableWithHashedPasswordAndNormalizedEmail() {
-        when(encoder.encode("minha-senha-forte-123")).thenReturn("bcrypt-hash");
+    void registersOnlyUsernameAndHashedPinWithoutEmailOrStaffProfile() {
+        when(pins.encode("pablo123", "0472")).thenReturn("protected-pin-hash");
         when(clientes.saveAndFlush(any(Cliente.class))).thenAnswer(call -> {
             Cliente cliente = call.getArgument(0);
             cliente.setId(7L);
             return cliente;
         });
-        ClienteCadastroResponse response = service.cadastrar(
-                new ClienteCadastroRequest("  cliente.tcc  ", "  CLIENTE@EXAMPLE.TEST  ", "minha-senha-forte-123"));
-        ArgumentCaptor<Cliente> saved = ArgumentCaptor.forClass(Cliente.class);
-        verify(clientes).saveAndFlush(saved.capture());
-        assertEquals("cliente.tcc", saved.getValue().getUsername());
-        assertEquals("cliente@example.test", saved.getValue().getEmail());
-        assertEquals("bcrypt-hash", saved.getValue().getPasswordHash());
-        assertEquals(7L, response.id());
-        assertEquals("cliente.tcc", response.nomeUsuario());
-        verify(funcionarios, never()).save(any());
+        var result = service.cadastrar(new ClienteCadastroRequest(" pablo123 ", "0472"));
+        ArgumentCaptor<Cliente> capture = ArgumentCaptor.forClass(Cliente.class);
+        verify(clientes).saveAndFlush(capture.capture());
+        assertEquals("pablo123", capture.getValue().getUsername());
+        assertEquals("protected-pin-hash", capture.getValue().getPinHash());
+        assertNull(capture.getValue().getEmail());
+        assertNull(capture.getValue().getPasswordHash());
+        assertEquals(7L, result.id());
     }
 
     @Test
-    void refusesDuplicateCustomerUsernameOrExistingStaffEmail() {
-        when(clientes.existsByUsernameIgnoreCase("cliente.tcc")).thenReturn(true);
-        assertThrows(IllegalStateException.class, () -> service.cadastrar(
-                new ClienteCadastroRequest("cliente.tcc", "novo@example.test", "minha-senha-forte-123")));
-
-        reset(clientes);
-        when(funcionarios.existsByEmailIgnoreCase("equipe@example.test")).thenReturn(true);
-        assertThrows(IllegalStateException.class, () -> service.cadastrar(
-                new ClienteCadastroRequest("novo", "equipe@example.test", "minha-senha-forte-123")));
+    void duplicateUsernameDoesNotCreateAccount() {
+        when(clientes.existsByUsernameIgnoreCase("pablo123")).thenReturn(true);
+        assertThrows(IllegalStateException.class,
+                () -> service.cadastrar(new ClienteCadastroRequest("pablo123", "0472")));
         verify(clientes, never()).saveAndFlush(any());
     }
 
     @Test
-    void refusesUtf8PasswordLongerThanBcryptLimit() {
-        String tooLong = "á".repeat(37);
-        assertTrue(tooLong.getBytes(StandardCharsets.UTF_8).length > 72);
-        assertThrows(IllegalArgumentException.class, () -> service.cadastrar(
-                new ClienteCadastroRequest("cliente.tcc", "novo@example.test", tooLong)));
-        verifyNoInteractions(clientes, funcionarios, encoder);
+    void pinMustBeExactlyFourDigitsIncludingLeadingZero() {
+        for (String invalid : new String[]{"472", "04720", "ab12", "12-3", ""}) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> service.cadastrar(new ClienteCadastroRequest("pablo123", invalid)));
+        }
+        verifyNoInteractions(clientes, pins);
     }
 }
