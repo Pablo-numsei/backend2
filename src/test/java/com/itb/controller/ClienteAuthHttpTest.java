@@ -39,7 +39,7 @@ class ClienteAuthHttpTest {
         when(customerAuth.login(any(ClienteLoginRequest.class)))
                 .thenReturn(new ClienteAuthResponse(27L, "cliente.tcc", "token-de-cliente"));
         mvc.perform(post("/api/clientes/login").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"cliente@example.test\",\"senha\":\"minha-senha-forte-123\"}"))
+                        .content("{\"nomeUsuario\":\"cliente.tcc\",\"pin\":\"0472\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("token-de-cliente"))
                 .andExpect(jsonPath("$.perfil").doesNotExist())
