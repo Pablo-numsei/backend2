@@ -89,7 +89,7 @@ public class PedidoService {
         );
 
         sql.append(
-                "@id_pedido = @id_pedido OUTPUT; "
+                "@id_pedido = @id_pedido OUTPUT, @cliente_id = ?, @nome_cliente = ?; "
         );
 
         sql.append(
@@ -106,6 +106,9 @@ public class PedidoService {
                         request.criadoPor()
                 )
         );
+
+        parametros.add(new SqlParameterValue(Types.BIGINT, request.clienteId()));
+        parametros.add(new SqlParameterValue(Types.NVARCHAR, request.nomeCliente()));
 
         Object[] args =
                 parametros.toArray();
