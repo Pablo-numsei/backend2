@@ -38,6 +38,14 @@ class RequestValidationTest {
         assertFalse(VALIDATOR.validate(new AtendimentoCreateRequest(1L, null, "GARCOM", "x".repeat(256))).isEmpty());
         assertTrue(VALIDATOR.validate(new AtendimentoCreateRequest(1L, null, "GARCOM", "x".repeat(255))).isEmpty());
     }
+    @Test void orderNotesHaveMaximumLengthButRemainOptional() {
+        var items = List.of(new ItemPedidoRequest(8L, 1));
+        assertTrue(VALIDATOR.validate(new PedidoCreateRequest(1L, null, items, null, null, null)).isEmpty());
+        assertTrue(VALIDATOR.validate(new PedidoCreateRequest(1L, null, items, null, null,
+                "carne bem passada")).isEmpty());
+        assertFalse(VALIDATOR.validate(new PedidoCreateRequest(1L, null, items, null, null,
+                "x".repeat(256))).isEmpty());
+    }
     @Test void newPasswordsNeedTwelveCharacters() {
         assertFalse(VALIDATOR.validate(new UsuarioCreateRequest(1L, "Test", "test@example.invalid", "shortpass")).isEmpty());
         assertTrue(VALIDATOR.validate(new UsuarioCreateRequest(1L, "Test", "test@example.invalid", "test-password-12")).isEmpty());
