@@ -39,7 +39,7 @@ public class ClienteAuthService {
                     "Muitas tentativas de PIN. Tente novamente mais tarde.");
 
         Cliente cliente = clientes.findByUsernameIgnoreCase(username).orElse(null);
-        boolean matches = pins.matches(username, request.pin(),
+        boolean matches = pins.matches(cliente == null ? username : cliente.getUsername(), request.pin(),
                 cliente == null ? MISSING_CLIENT_HASH : cliente.getPinHash());
 
         if (!matches || cliente == null) {
