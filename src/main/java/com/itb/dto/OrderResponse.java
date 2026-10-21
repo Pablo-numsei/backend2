@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 
 public record OrderResponse(
         Long id, MesaSummary mesa, StatusSummary status, BigDecimal totalValue,
+        String nomeCliente,
         Boolean confirmed, LocalDateTime confirmedAt, LocalDateTime createdAt,
         LocalDateTime updatedAt,
         @JsonInclude(JsonInclude.Include.NON_NULL) String accessToken
@@ -22,7 +23,7 @@ public record OrderResponse(
                 order.getStatus() == null ? null
                         : new StatusSummary(order.getStatus().getId(), order.getStatus().getName(),
                                 order.getStatus().getFlowOrder()),
-                order.getTotalValue(), order.getConfirmed(), order.getConfirmedAt(),
+                order.getTotalValue(), order.getCustomerName(), order.getConfirmed(), order.getConfirmedAt(),
                 order.getCreatedAt(), order.getUpdatedAt(), accessToken);
     }
 
