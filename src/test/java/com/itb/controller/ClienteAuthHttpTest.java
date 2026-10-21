@@ -37,20 +37,21 @@ class ClienteAuthHttpTest {
     @Test
     void anonymousLoginIsPublicButStaffRoutesRemainPrivate() throws Exception {
         when(customerAuth.login(any(ClienteLoginRequest.class)))
-                .thenReturn(new ClienteAuthResponse(27L, "cliente.tcc", "cliente@example.test", "token-de-cliente"));
+                .thenReturn(new ClienteAuthResponse(27L, "cliente.tcc", "token-de-cliente"));
         mvc.perform(post("/api/clientes/login").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"cliente@example.test\",\"senha\":\"minha-senha-forte-123\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.token").value("token-de-cliente"))
                 .andExpect(jsonPath("$.perfil").doesNotExist())
-                .andExpect(jsonPath("$.passwordHash").doesNotExist());
+                .andExpect(jsonPath("$.passwordHash").doesNotExist())
+                .andExpect(jsonPath("$.pin").doesNotExist());
         mvc.perform(get("/api/usuarios")).andExpect(status().isUnauthorized());
     }
 
     @Test
     void customerProfileReadsCustomerTokenOnly() throws Exception {
         when(customerAuth.profile("Bearer customer.jwt.token"))
-                .thenReturn(new ClienteProfileResponse(27L, "cliente.tcc", "cliente@example.test"));
+                .thenReturn(new ClienteProfileResponse(27L, "cliente.tcc"));
         mvc.perform(get("/api/clientes/me").header("Authorization", "Bearer customer.jwt.token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.nomeUsuario").value("cliente.tcc"))
@@ -60,7 +61,7 @@ class ClienteAuthHttpTest {
     @Test
     void invalidLoginBodyReturns400() throws Exception {
         mvc.perform(post("/api/clientes/login").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"email\":\"invalido\",\"senha\":\"123\"}"))
+                        .content("{\"nomeUsuario\":\"invalido\",\"pin\":\"123\"}"))
                 .andExpect(status().isBadRequest());
         verifyNoInteractions(customerAuth);
     }
