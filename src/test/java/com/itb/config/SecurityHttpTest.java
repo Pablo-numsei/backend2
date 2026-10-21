@@ -59,6 +59,7 @@ class SecurityHttpTest {
     @MockBean private OrderRepository orderRepository;
     @MockBean private MesaRepository mesaRepository;
     @MockBean private PedidoService pedidos;
+    @MockBean private WhatsAppNotificationService whatsApp;
     @MockBean private PaymentService payments;
     @MockBean private EntityManager entityManager;
     private Order order;
@@ -274,11 +275,30 @@ class SecurityHttpTest {
     void newOrderReceivesCapabilityAndIgnoresForgedStaffId() throws Exception {
         mvc.perform(post("/api/pedidos").contentType(MediaType.APPLICATION_JSON)
                         .header("X-Table-Token", tableContextToken())
-                        .content("{\"mesaId\":3,\"criadoPor\":999,\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
+                        .content("{\"mesaId\":3,\"criadoPor\":999,\"nomeCliente\":\"Lucas\",\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.accessToken").isString());
         ArgumentCaptor<PedidoCreateRequest> request = ArgumentCaptor.forClass(PedidoCreateRequest.class);
         verify(pedidos).criarPedido(request.capture());
         assertNull(request.getValue().criadoPor());
+    }
+
+    @Test
+    void guestOrderRequiresANameAfterChoosingItems() throws Exception {
+        mvc.perform(post("/api/pedidos").contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Table-Token", tableContextToken())
+                        .content("{\\"mesaId\\":3,\\"itens\\":[{\\"produtoId\\":8,\\"quantidade\\":1}]}"))
+                .andExpect(status().isBadRequest());
+        verify(pedidos, never()).criarPedido(any());
+    }
+
+    @Test
+    void guestCanCancelWhatsappWithOrderScopedTokenOnly() throws Exception {
+        mvc.perform(post("/api/pedidos/42/whatsapp/cancelar"))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/pedidos/42/whatsapp/cancelar")
+                        .header("X-Order-Token", jwt.generateOrderToken(42L)))
+                .andExpect(status().isNoContent());
+        verify(whatsApp).cancelConsent(42L);
     }
 
     @Test
