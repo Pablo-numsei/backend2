@@ -69,7 +69,8 @@ public class OrderController {
         Order order = pedidoService.criarPedido(new PedidoCreateRequest(
                 request.mesaId(), staffId, request.itens(),
                 cliente == null ? null : cliente.getId(),
-                cliente == null ? null : cliente.getUsername()));
+                cliente == null ? null : cliente.getUsername(),
+                request.observacoes()));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(OrderResponse.from(order, jwtService.generateOrderToken(order.getId())));
     }
