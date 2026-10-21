@@ -89,7 +89,7 @@ public class PedidoService {
         );
 
         sql.append(
-                "@id_pedido = @id_pedido OUTPUT, @cliente_id = ?, @nome_cliente = ?; "
+                "@id_pedido = @id_pedido OUTPUT, @cliente_id = ?, @nome_cliente = ?, @observacoes = ?; "
         );
 
         sql.append(
@@ -109,6 +109,12 @@ public class PedidoService {
 
         parametros.add(new SqlParameterValue(Types.BIGINT, request.clienteId()));
         parametros.add(new SqlParameterValue(Types.NVARCHAR, request.nomeCliente()));
+        String observacoes = request.observacoes() == null ? null : request.observacoes().trim();
+        if (observacoes != null && observacoes.length() > 255) {
+            throw new IllegalArgumentException("A observação aceita no máximo 255 caracteres.");
+        }
+        parametros.add(new SqlParameterValue(Types.NVARCHAR,
+                observacoes == null || observacoes.isEmpty() ? null : observacoes));
 
         Object[] args =
                 parametros.toArray();
