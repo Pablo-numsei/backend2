@@ -47,6 +47,13 @@ public class Order {
     @JoinColumn(name = "alterado_por")
     private Usuario updatedBy;
 
+    @ManyToOne
+    @JoinColumn(name = "cliente_id")
+    private Cliente customer;
+
+    @Column(name = "nome_cliente", length = 40)
+    private String customerName;
+
     @Column(name = "excluido_em")
     private LocalDateTime deletedAt;
 }
