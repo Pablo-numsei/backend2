@@ -1,4 +1,6 @@
--- Esquema compativel com dbo.Desperdicios_Produtos ja existente no TableHub.
+-- Modelo para BANCO NOVO; custo de desperdício pode ser desconhecido (NULL).
+-- Para banco existente cuja coluna está NOT NULL, consultar auditoria e somente
+-- se necessário executar patch_desperdicios_custo_opcional.sql depois de backup.
 -- NAO execute se sua tabela ja existe; o script e apenas para novos bancos.
 -- NUNCA derruba, altera ou apaga uma tabela existente.
 SET XACT_ABORT ON;
@@ -11,7 +13,7 @@ BEGIN
         quantidade INT NOT NULL,
         motivo NVARCHAR(20) NOT NULL,
         observacao NVARCHAR(255) NULL,
-        custo_unitario_informado DECIMAL(12,2) NOT NULL,
+        custo_unitario_informado DECIMAL(12,2) NULL,
         registrado_em DATETIME2(0) NOT NULL CONSTRAINT DF_Desperdicios_RegistradoEm DEFAULT SYSUTCDATETIME(),
         registrado_por BIGINT NOT NULL,
         estoque_antes INT NOT NULL,
