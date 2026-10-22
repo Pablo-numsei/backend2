@@ -14,6 +14,13 @@ IF OBJECT_ID(N'dbo.Pedidos', N'U') IS NULL
     THROW 50042, N'Tabela dbo.Pedidos não encontrada.', 1;
 IF OBJECT_ID(N'dbo.sp_CriarPedido', N'P') IS NULL
     THROW 50043, N'Procedure sp_CriarPedido não encontrada.', 1;
+IF COL_LENGTH(N'dbo.Pedidos', N'cliente_id') IS NULL
+    THROW 50044, N'Aplique primeiro patch_pedidos_cliente_pin.sql.', 1;
+IF NOT EXISTS (
+    SELECT 1 FROM sys.parameters
+    WHERE object_id = OBJECT_ID(N'dbo.sp_CriarPedido') AND name = N'@cliente_id'
+)
+    THROW 50045, N'A procedure atual não contém autenticação de clientes. Pare e revise a migração anterior.', 1;
 GO
 
 IF COL_LENGTH(N'dbo.Pedidos', N'observacoes') IS NULL
@@ -57,7 +64,7 @@ BEGIN
             RAISERROR(N'Mesa inexistente ou inativa.', 16, 1);
         END;
 
-        /* Bloqueia as linhas dos produtos durante valida��o para evitar overselling. */
+        /* Bloqueia as linhas dos produtos durante validação para evitar overselling. */
         IF EXISTS (
             SELECT 1
             FROM @itens i
@@ -79,10 +86,10 @@ BEGIN
 
         IF @status_recebido IS NULL
         BEGIN
-            RAISERROR(N'Status inicial Recebido n�o est� configurado.', 16, 1);
+            RAISERROR(N'Status inicial Recebido não est� configurado.', 16, 1);
         END;
 
-        /* Pedido nasce n�o confirmado apenas durante esta transa��o. */
+        /* Pedido nasce não confirmado apenas durante esta transação. */
         INSERT INTO dbo.Pedidos (
             mesa_id,
             status_id,
@@ -106,13 +113,13 @@ BEGIN
 
         SET @id_pedido = SCOPE_IDENTITY();
 
-        /* Snapshot do pre�o atual do produto no momento da compra. */
+        /* Snapshot do preço atual do produto no momento da compra. */
         INSERT INTO dbo.Itens_Pedido (pedido_id, produto_id, quantidade, preco_unitario)
         SELECT @id_pedido, p.id_produto, i.quantidade, p.preco
         FROM @itens i
         INNER JOIN dbo.Produtos p ON p.id_produto = i.produto_id;
 
-        /* Baixa de estoque na mesma transa��o. */
+        /* Baixa de estoque na mesma transação. */
         UPDATE p
            SET p.estoque = p.estoque - i.quantidade,
                p.alterado_por = COALESCE(@criado_por, p.alterado_por),
