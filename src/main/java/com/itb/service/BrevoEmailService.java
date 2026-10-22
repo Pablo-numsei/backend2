@@ -1,7 +1,7 @@
 package com.itb.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +27,7 @@ public class BrevoEmailService {
     private final ObjectMapper mapper;
     private final HttpClient client;
 
+    @Autowired
     public BrevoEmailService(@Value("${app.password-reset.brevo-api-key:}") String apiKey,
                              ObjectMapper mapper) {
         this(apiKey, mapper, HttpClient.newBuilder()
