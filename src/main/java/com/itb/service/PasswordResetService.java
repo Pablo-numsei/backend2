@@ -30,6 +30,10 @@ public class PasswordResetService {
     private final PasswordEncoder passwords;
     private final JdbcTemplate jdbc;
     private final ObjectProvider<JavaMailSender> mailSenders;
+    private final BrevoEmailService brevoEmailService;
+
+    @Value("${app.password-reset.provider:smtp}")
+    private String mailProvider;
 
     @Value("${spring.mail.host:}")
     private String mailHost;
@@ -41,36 +45,61 @@ public class PasswordResetService {
     private String frontendUrl;
 
     public void request(String rawEmail) {
-        // Do not claim success if SMTP is not even configured. This is independent of the e-mail supplied.
-        JavaMailSender sender = mailSenders.getIfAvailable();
-        if (mailHost == null || mailHost.isBlank() || from == null || from.isBlank() || sender == null) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "A recuperação por e-mail não está configurada. Contate o administrador.");
+        boolean brevo = "brevo".equalsIgnoreCase(mailProvider);
+        boolean smtp = mailProvider == null || mailProvider.isBlank()
+                || "smtp".equalsIgnoreCase(mailProvider);
+
+        // Validar a configuracao antes de consultar o e-mail, sem revelar existencia de contas.
+        if (from == null || from.isBlank()) {
+            throw unavailable();
         }
+        JavaMailSender sender = null;
+        if (brevo) {
+            if (!brevoEmailService.isConfigured()) throw unavailable();
+        } else if (smtp) {
+            if (mailHost == null || mailHost.isBlank()) throw unavailable();
+            sender = mailSenders.getIfAvailable();
+            if (sender == null) throw unavailable();
+        } else {
+            throw unavailable();
+        }
+
         String email = rawEmail.trim().toLowerCase(Locale.ROOT);
         Usuario user = usuarios.findByEmailIgnoreCase(email).orElse(null);
 
-        // Do not reveal whether the address exists or is deactivated.
+        // Resultado identico para e-mail inexistente ou usuario desativado.
         if (user == null || !Boolean.TRUE.equals(user.getActive())) return;
 
         String token = jwt.generatePasswordResetToken(user);
         String resetUrl = frontendUrl.replaceAll("/+$", "") + "/redefinir-senha#token=" + token;
-
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(from);
-        message.setTo(user.getEmail());
-        message.setSubject("TableHub - recuperação de senha");
-        message.setText("Uma recuperação de senha foi solicitada para sua conta TableHub.\n\n"
+        String subject = "TableHub - recuperação de senha";
+        String body = "Uma recuperação de senha foi solicitada para sua conta TableHub.\n\n"
                 + "Para criar sua nova senha, abra o link (válido por 15 minutos):\n"
                 + resetUrl + "\n\nSe não foi você, ignore esta mensagem.\n"
-                + "Nunca informe sua senha por e-mail.");
+                + "Nunca informe sua senha por e-mail.";
 
-        try {
-            sender.send(message);
-        } catch (MailException ex) {
-            // Avoid exposing account existence and internal SMTP errors.
-            log.warn("Falha na entrega do e-mail de recuperação.");
+        if (brevo) {
+            // Nao revelar a existencia do usuario nem o token em mensagens de erro/logs.
+            if (!brevoEmailService.send(from, user.getEmail(), subject, body)) {
+                log.warn("Falha na entrega do e-mail de recuperação (API HTTPS).");
+            }
+        } else {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(from);
+            message.setTo(user.getEmail());
+            message.setSubject(subject);
+            message.setText(body);
+            try {
+                sender.send(message);
+            } catch (MailException ex) {
+                log.warn("Falha na entrega do e-mail de recuperação (SMTP).");
+            }
         }
+    }
+
+    private ResponseStatusException unavailable() {
+        return new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                "A recuperação por e-mail não está configurada. Contate o administrador.");
     }
 
     @Transactional
