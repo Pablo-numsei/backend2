@@ -198,6 +198,22 @@ class SecurityHttpTest {
     }
 
     @Test
+    void paymentHistoryIsVisibleToCashierButNotGuestsOrKitchen() throws Exception {
+        when(payments.listRecentPayments()).thenReturn(List.of());
+        mvc.perform(get("/api/payments")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/payments").header("X-Order-Token", jwt.generateOrderToken(42L)))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/payments").header("Authorization", bearer("COZINHA")))
+                .andExpect(status().isForbidden());
+        verify(payments, never()).listRecentPayments();
+        for (String role : List.of("ADMINISTRADOR", "GARCOM")) {
+            mvc.perform(get("/api/payments").header("Authorization", bearer(role)))
+                    .andExpect(status().isOk()).andExpect(content().json("[]"));
+        }
+        verify(payments, times(2)).listRecentPayments();
+    }
+
+    @Test
     void guestCannotApproveOrCancelPayment() throws Exception {
         for (String action : List.of("confirm", "cancel")) {
             mvc.perform(post("/api/payments/42/" + action).header("X-Order-Token", jwt.generateOrderToken(42L)))
