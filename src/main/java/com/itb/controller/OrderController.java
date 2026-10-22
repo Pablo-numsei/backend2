@@ -4,8 +4,10 @@ import com.itb.dto.AvancarStatusRequest;
 import com.itb.dto.OrderResponse;
 import com.itb.dto.PedidoCreateRequest;
 import com.itb.model.Order;
+import com.itb.model.Cliente;
 import com.itb.repository.OrderRepository;
 import com.itb.service.CurrentUserService;
+import com.itb.service.ClienteAuthService;
 import com.itb.service.JwtService;
 import com.itb.service.OrderAccessService;
 import com.itb.service.PedidoService;
@@ -29,6 +31,7 @@ public class OrderController {
     private final JwtService jwtService;
     private final CurrentUserService currentUser;
     private final TableAccessService tableAccessService;
+    private final ClienteAuthService clienteAuth;
 
     @GetMapping
     public List<OrderResponse> getAll() {
@@ -49,9 +52,25 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<OrderResponse> criarPedido(@Valid @RequestBody PedidoCreateRequest request,
-            @RequestHeader(value = "X-Table-Token", required = false) String tableToken) {
+            @RequestHeader(value = "X-Table-Token", required = false) String tableToken,
+            @RequestHeader(value = "X-Customer-Token", required = false) String customerToken) {
         tableAccessService.requireWriteAccess(request.mesaId(), tableToken);
-        Order order = pedidoService.criarPedido(new PedidoCreateRequest(request.mesaId(), currentUser.idOrNull(), request.itens()));
+        Long staffId = currentUser.idOrNull();
+        if (staffId == null && (customerToken == null || customerToken.isBlank())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.UNAUTHORIZED, "Entre com usuário e PIN para fazer pedidos.");
+        }
+        Cliente cliente = staffId == null ? clienteAuth.requireCustomer(customerToken) : null;
+        if (staffId == null && cliente == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                HttpStatus.UNAUTHORIZED, "Sessão de cliente inválida.");
+        }
+        // No forged staff id or customer id from the HTTP body is ever trusted.
+        Order order = pedidoService.criarPedido(new PedidoCreateRequest(
+                request.mesaId(), staffId, request.itens(),
+                cliente == null ? null : cliente.getId(),
+                cliente == null ? null : cliente.getUsername(),
+                request.observacoes()));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(OrderResponse.from(order, jwtService.generateOrderToken(order.getId())));
     }

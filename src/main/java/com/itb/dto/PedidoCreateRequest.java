@@ -18,7 +18,23 @@ public record PedidoCreateRequest(
 
         @NotEmpty(message = "O pedido precisa ter pelo menos um item")
         @Size(max = 50, message = "O pedido aceita no máximo 50 itens distintos")
-        List<@NotNull @Valid ItemPedidoRequest> itens
+        List<@NotNull @Valid ItemPedidoRequest> itens,
+
+        // Overwritten by the server; never trust client-supplied identities.
+        Long clienteId,
+
+        String nomeCliente,
+
+        @Size(max = 255, message = "A observação aceita no máximo 255 caracteres")
+        String observacoes
 
 ) {
+    public PedidoCreateRequest(Long mesaId, Long criadoPor, List<ItemPedidoRequest> itens) {
+        this(mesaId, criadoPor, itens, null, null, null);
+    }
+
+    public PedidoCreateRequest(Long mesaId, Long criadoPor, List<ItemPedidoRequest> itens,
+                               Long clienteId, String nomeCliente) {
+        this(mesaId, criadoPor, itens, clienteId, nomeCliente, null);
+    }
 }

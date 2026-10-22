@@ -47,6 +47,21 @@ public class Order {
     @JoinColumn(name = "alterado_por")
     private Usuario updatedBy;
 
+    @ManyToOne
+    @JoinColumn(name = "cliente_id")
+    private Cliente customer;
+
+    @Column(name = "nome_cliente", length = 40)
+    private String customerName;
+
+    // Preparação do pedido: informação enviada pelo cliente à equipe.
+    @Column(name = "observacoes", length = 255)
+    private String observacoes;
+
+    // UTC explícito: a coluna legado criado_em não contém informação de fuso.
+    @Column(name = "criado_em_utc", insertable = false, updatable = false)
+    private LocalDateTime createdAtUtc;
+
     @Column(name = "excluido_em")
     private LocalDateTime deletedAt;
 }

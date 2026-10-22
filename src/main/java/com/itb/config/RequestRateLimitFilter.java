@@ -52,7 +52,7 @@ public class RequestRateLimitFilter extends OncePerRequestFilter {
         boolean resetConfirm = path.equals("/api/auth/password-reset/confirm");
         boolean customerSignup = path.equals("/api/clientes/cadastro");
         boolean customerLogin = path.equals("/api/clientes/login");
-        int limit = resetRequest ? 5 : resetConfirm ? 10 : customerSignup || customerLogin ? 10 :
+        int limit = resetRequest ? 5 : resetConfirm ? 10 : customerSignup ? 20 : customerLogin ? 40 :
                 path.equals("/api/auth/login") || path.equals("/api/mesas/contexto")
                 || pushSubscription ? 20 : 60;
         boolean limited = "POST".equals(request.getMethod()) &&

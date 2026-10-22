@@ -59,6 +59,7 @@ class SecurityHttpTest {
     @MockBean private OrderRepository orderRepository;
     @MockBean private MesaRepository mesaRepository;
     @MockBean private PedidoService pedidos;
+    @MockBean private ClienteAuthService clienteAuth;
     @MockBean private PaymentService payments;
     @MockBean private EntityManager entityManager;
     private Order order;
@@ -91,6 +92,10 @@ class SecurityHttpTest {
         when(orderRepository.findByDeletedAtIsNullOrderByCreatedAtAsc()).thenReturn(List.of(order));
         when(pedidos.avancarStatus(eq(42L), any(AvancarStatusRequest.class))).thenReturn(order);
         when(pedidos.criarPedido(any(PedidoCreateRequest.class))).thenReturn(order);
+        Cliente cliente = new Cliente();
+        cliente.setId(27L);
+        cliente.setUsername("pablo123");
+        when(clienteAuth.requireCustomer("valid-customer-token")).thenReturn(cliente);
         Payment payment = payment();
         when(payments.confirmPayment(eq(42L), anyString())).thenReturn(payment);
         when(payments.cancelPayment(eq(42L), anyString())).thenReturn(payment);
@@ -193,6 +198,22 @@ class SecurityHttpTest {
     }
 
     @Test
+    void paymentHistoryIsVisibleToCashierButNotGuestsOrKitchen() throws Exception {
+        when(payments.listRecentPayments()).thenReturn(List.of());
+        mvc.perform(get("/api/payments")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/payments").header("X-Order-Token", jwt.generateOrderToken(42L)))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/payments").header("Authorization", bearer("COZINHA")))
+                .andExpect(status().isForbidden());
+        verify(payments, never()).listRecentPayments();
+        for (String role : List.of("ADMINISTRADOR", "GARCOM")) {
+            mvc.perform(get("/api/payments").header("Authorization", bearer(role)))
+                    .andExpect(status().isOk()).andExpect(content().json("[]"));
+        }
+        verify(payments, times(2)).listRecentPayments();
+    }
+
+    @Test
     void guestCannotApproveOrCancelPayment() throws Exception {
         for (String action : List.of("confirm", "cancel")) {
             mvc.perform(post("/api/payments/42/" + action).header("X-Order-Token", jwt.generateOrderToken(42L)))
@@ -274,11 +295,24 @@ class SecurityHttpTest {
     void newOrderReceivesCapabilityAndIgnoresForgedStaffId() throws Exception {
         mvc.perform(post("/api/pedidos").contentType(MediaType.APPLICATION_JSON)
                         .header("X-Table-Token", tableContextToken())
-                        .content("{\"mesaId\":3,\"criadoPor\":999,\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
+                        .header("X-Customer-Token", "valid-customer-token")
+                        .content("{\"mesaId\":3,\"criadoPor\":999,\"clienteId\":999,\"nomeCliente\":\"Atacante\",\"observacoes\":\"carne bem passada\",\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.accessToken").isString());
         ArgumentCaptor<PedidoCreateRequest> request = ArgumentCaptor.forClass(PedidoCreateRequest.class);
         verify(pedidos).criarPedido(request.capture());
         assertNull(request.getValue().criadoPor());
+        assertEquals(27L, request.getValue().clienteId());
+        assertEquals("pablo123", request.getValue().nomeCliente());
+        assertEquals("carne bem passada", request.getValue().observacoes());
+    }
+
+    @Test
+    void guestCannotSendOrderWithOnlyQrCodeAndNoPinSession() throws Exception {
+        mvc.perform(post("/api/pedidos").contentType(MediaType.APPLICATION_JSON)
+                        .header("X-Table-Token", tableContextToken())
+                        .content("{\"mesaId\":3,\"itens\":[{\"produtoId\":8,\"quantidade\":1}]}"))
+                .andExpect(status().isUnauthorized());
+        verify(pedidos, never()).criarPedido(any());
     }
 
     @Test

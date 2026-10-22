@@ -1,4 +1,4 @@
 package com.itb.dto;
 
-/** Minimal customer profile returned only for a valid customer JWT. */
-public record ClienteProfileResponse(Long id, String nomeUsuario, String email) {}
+/** Cliente autenticado: nenhuma permissão de funcionário e nenhum dado sensível. */
+public record ClienteProfileResponse(Long id, String nomeUsuario) {}

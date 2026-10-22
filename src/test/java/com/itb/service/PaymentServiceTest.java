@@ -56,6 +56,28 @@ class PaymentServiceTest {
     }
 
     @Test
+    void cashierHistoryReturnsRecentVisiblePaymentsWithoutGatewayReference() {
+        Order order = new Order();
+        order.setId(91L);
+        Payment payment = new Payment();
+        payment.setId(9L);
+        payment.setOrder(order);
+        payment.setAmount(new BigDecimal("29.90"));
+        payment.setMethod("PIX");
+        payment.setStatus("PENDENTE");
+        payment.setGatewayReference("private-reference");
+        when(paymentRepository.findRecentVisiblePayments(any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(List.of(payment));
+
+        var result = paymentService.listRecentPayments();
+        assertEquals(1, result.size());
+        assertEquals(91L, result.getFirst().orderId());
+        assertEquals("PIX", result.getFirst().method());
+        verify(paymentRepository).findRecentVisiblePayments(argThat(page ->
+                page.getPageNumber() == 0 && page.getPageSize() == 200));
+    }
+
+    @Test
     void clientRequestCreatesPendingPaymentWithoutConfirmingReceipt() {
         stubLockedPayments(List.of());
         stubSave();
