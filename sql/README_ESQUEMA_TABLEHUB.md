@@ -12,6 +12,7 @@ Este diretório contém os **scripts versionados** necessários para os módulos
 2. Execute **somente consultas de leitura**:
    - `sql/AUDITORIA_ESQUEMA_SOMEE.sql`: blocos 01–09 de tabelas, colunas, FKs e defaults.
    - `sql/VALIDAR_CONTRATO_BACKEND.sql`: procedures, triggers, views, tipo-tabela e perfis/status operacionais.
+   - `sql/EXPORTAR_DER_UM_CSV.sql`: opção de exportação simplificada; reúne contagens, todas as colunas, PKs e FKs em **um único resultado CSV**.
 3. Compare os resultados com os códigos e com `docs/DER_TABLEHUB_PREVISTO_POS_MIGRACOES.md`. Não compartilhe PINs, tokens, senhas, hashes ou segredos de configuração.
 4. **Aplique um patch opcional somente se a auditoria comprovar que ele é necessário**, primeiro em uma cópia de testes:
    - `sql/patch_desperdicios_custo_opcional.sql`: quando `Desperdicios_Produtos.custo_unitario_informado` consta `NULL_DIVERGENTE` (custo deve admitir ausência).
