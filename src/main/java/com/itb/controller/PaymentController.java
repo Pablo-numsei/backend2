@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/payments")
@@ -19,6 +20,12 @@ public class PaymentController {
 
     private final PaymentService paymentService;
     private final OrderAccessService orderAccessService;
+
+    /** Histórico da operação, protegido pela configuração de perfis de equipe. */
+    @GetMapping
+    public List<PaymentResponse> getAllPayments() {
+        return paymentService.listRecentPayments();
+    }
 
     @GetMapping("/{orderId}")
     public ResponseEntity<PaymentResponse> getPayment(
