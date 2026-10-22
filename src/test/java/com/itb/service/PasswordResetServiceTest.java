@@ -31,6 +31,7 @@ class PasswordResetServiceTest {
     @Mock private JdbcTemplate jdbc;
     @Mock private ObjectProvider<JavaMailSender> mailSenders;
     @Mock private JavaMailSender sender;
+    @Mock private BrevoEmailService brevoEmailService;
     @InjectMocks private PasswordResetService service;
 
     private Usuario active;
@@ -38,6 +39,7 @@ class PasswordResetServiceTest {
     @BeforeEach
     void init() {
         ReflectionTestUtils.setField(service, "mailHost", "smtp.example.test");
+        ReflectionTestUtils.setField(service, "mailProvider", "smtp");
         ReflectionTestUtils.setField(service, "from", "noreply@example.test");
         ReflectionTestUtils.setField(service, "frontendUrl", "https://tablehub.example.test");
         active = new Usuario();
@@ -76,6 +78,47 @@ class PasswordResetServiceTest {
         var e = assertThrows(ResponseStatusException.class, () -> service.request("staff@example.test"));
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, e.getStatusCode());
         verifyNoInteractions(usuarios);
+    }
+
+    @Test
+    void brevoSendsRecoveryLinkWithoutUsingSmtp() {
+        ReflectionTestUtils.setField(service, "mailProvider", "brevo");
+        when(brevoEmailService.isConfigured()).thenReturn(true);
+        when(usuarios.findByEmailIgnoreCase("staff@example.test")).thenReturn(Optional.of(active));
+        when(jwt.generatePasswordResetToken(active)).thenReturn("safe.synthetic.token");
+        when(brevoEmailService.send(eq("noreply@example.test"), eq("staff@example.test"),
+                eq("TableHub - recuperação de senha"),
+                contains("https://tablehub.example.test/redefinir-senha#token=safe.synthetic.token")))
+                .thenReturn(true);
+
+        assertDoesNotThrow(() -> service.request("STAFF@example.test"));
+
+        verify(brevoEmailService).send(eq("noreply@example.test"), eq("staff@example.test"),
+                anyString(), contains("safe.synthetic.token"));
+        verifyNoInteractions(mailSenders, sender);
+    }
+
+    @Test
+    void missingBrevoKeyReturns503BeforeAccountLookup() {
+        ReflectionTestUtils.setField(service, "mailProvider", "brevo");
+        when(brevoEmailService.isConfigured()).thenReturn(false);
+
+        var e = assertThrows(ResponseStatusException.class, () -> service.request("staff@example.test"));
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, e.getStatusCode());
+        verifyNoInteractions(usuarios, mailSenders, sender);
+    }
+
+    @Test
+    void brevoUnknownEmailReturnsWithoutSending() {
+        ReflectionTestUtils.setField(service, "mailProvider", "brevo");
+        when(brevoEmailService.isConfigured()).thenReturn(true);
+        when(usuarios.findByEmailIgnoreCase("unknown@example.test")).thenReturn(Optional.empty());
+
+        assertDoesNotThrow(() -> service.request("unknown@example.test"));
+
+        verify(brevoEmailService, never()).send(anyString(), anyString(), anyString(), anyString());
+        verifyNoInteractions(jwt, mailSenders, sender);
     }
 
     @Test
