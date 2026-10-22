@@ -1,3 +1,17 @@
+/*
+ATENCAO: SCRIPT-BASE LEGADO, APENAS PARA INSTALACAO CONTROLADA EM BANCO NOVO.
+NAO EXECUTE NO BANCO SOMEE EXISTENTE.
+ESTE ARQUIVO CONTEM CREATE DATABASE E ALTER AUTHORIZATION, alem de CREATE TABLE,
+triggers, seeds e procedures que nao devem ser reaplicadas em producao.
+
+A estrutura atual dos clientes PIN, pedidos com observacoes/UTC, push,
+atendimentos e desperdicios depende tambem dos patches em sql/.
+Leia sql/README_ESQUEMA_TABLEHUB.md antes de qualquer execucao.
+Para auditar o Somee sem alterar dados:
+sql/AUDITORIA_ESQUEMA_SOMEE.sql
+sql/VALIDAR_CONTRATO_BACKEND.sql
+*/
+
 
 
 
