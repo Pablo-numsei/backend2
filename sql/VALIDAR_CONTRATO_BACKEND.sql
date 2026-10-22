@@ -4,6 +4,9 @@ Somente leitura. Complementa AUDITORIA_ESQUEMA_SOMEE.sql.
 Uso: execute no banco indicado por DB_URL; confira AUSENTE antes de
 considerar uma migração. Não executa alterações no Somee.
 
+Compatibilidade: comparações entre catálogo do servidor e variáveis locais
+usam COLLATE DATABASE_DEFAULT para evitar Msg 468 no Somee. Apenas leitura.
+
 Atenção: objetos legados são criados pelo script-base e podem não ser
 reconstruíveis a partir de um patch isolado sem avaliar dependências.
 */
@@ -32,7 +35,7 @@ INSERT INTO @Obrigatorios (objeto, tipo, modulo) VALUES
 SELECT N'CONTRATO_02_PROCEDURES_TRIGGERS_VIEWS' AS bloco,
        e.objeto, e.modulo,
        CASE WHEN o.object_id IS NULL THEN N'AUSENTE'
-            WHEN o.type <> e.tipo THEN N'TIPO_DIVERGENTE'
+            WHEN o.type COLLATE DATABASE_DEFAULT <> e.tipo COLLATE DATABASE_DEFAULT THEN N'TIPO_DIVERGENTE'
             ELSE N'OK' END AS resultado
 FROM @Obrigatorios e
 LEFT JOIN sys.objects o ON o.object_id = OBJECT_ID(e.objeto)
@@ -81,7 +84,7 @@ FROM (VALUES
 ) e(nome_parametro)
 LEFT JOIN sys.parameters p
  ON p.object_id = OBJECT_ID(N'dbo.sp_CriarPedido')
- AND p.name=e.nome_parametro
+ AND p.name COLLATE DATABASE_DEFAULT = e.nome_parametro COLLATE DATABASE_DEFAULT
 ORDER BY e.nome_parametro;
 
 -- Valores base não sensíveis para a operação (apenas quando as tabelas existem).
