@@ -37,7 +37,9 @@ class PedidoServiceObservacoesTest {
         when(jdbc.queryForObject(anyString(), eq(Long.class), any(Object[].class)))
                 .thenAnswer(invocation -> {
                     String sql = invocation.getArgument(0);
-                    Object[] params = invocation.getArgument(2);
+                    // JdbcTemplate uses Object...; getArguments() expands varargs into
+                    // individual values. getRawArguments() retains the original array.
+                    Object[] params = (Object[]) invocation.getRawArguments()[2];
                     assertTrue(sql.contains("EXEC dbo.sp_CriarPedido"));
                     assertTrue(sql.contains("@cliente_id = ?"));
                     assertTrue(sql.contains("@observacoes = ?"));
