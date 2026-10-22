@@ -1,6 +1,8 @@
 package com.itb.service;
 
 import com.itb.dto.PaymentRequest;
+import com.itb.dto.PaymentResponse;
+import org.springframework.data.domain.PageRequest;
 import com.itb.exception.ResourceNotFoundException;
 import com.itb.model.Order;
 import com.itb.model.Payment;
@@ -29,6 +31,15 @@ public class PaymentService {
     private final SocketService socketService;
     private final PushNotificationService pushNotificationService;
     private final EntityManager entityManager;
+
+    /** No máximo 200 registros recentes, sem dados privados do cliente. */
+    @Transactional(readOnly = true)
+    public List<PaymentResponse> listRecentPayments() {
+        return paymentRepository.findRecentVisiblePayments(PageRequest.of(0, 200))
+                .stream()
+                .map(PaymentResponse::from)
+                .toList();
+    }
 
     @Transactional(readOnly = true)
     public Payment getPayment(Long orderId) {
