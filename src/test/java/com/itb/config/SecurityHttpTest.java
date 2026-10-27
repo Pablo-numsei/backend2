@@ -2,6 +2,7 @@ package com.itb.config;
 
 import com.itb.controller.OrderController;
 import com.itb.controller.PaymentController;
+import com.itb.controller.DesperdicioController;
 import com.itb.controller.UsuarioController;
 import com.itb.dto.AvancarStatusRequest;
 import com.itb.dto.PedidoCreateRequest;
@@ -40,7 +41,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /** Exercises the production filter chain and signed JWTs with synthetic repository fixtures. */
-@WebMvcTest(controllers = {OrderController.class, UsuarioController.class, PaymentController.class}, properties = {
+@WebMvcTest(controllers = {OrderController.class, UsuarioController.class, PaymentController.class, DesperdicioController.class}, properties = {
         // Deliberately public, synthetic key used only inside this test context.
         "jwt.secret=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
         "jwt.expiration=60000", "jwt.order-expiration=60000"
@@ -61,6 +62,7 @@ class SecurityHttpTest {
     @MockBean private PedidoService pedidos;
     @MockBean private ClienteAuthService clienteAuth;
     @MockBean private PaymentService payments;
+    @MockBean private DesperdicioService desperdicios;
     @MockBean private EntityManager entityManager;
     private Order order;
 
@@ -145,6 +147,18 @@ class SecurityHttpTest {
             mvc.perform(get(route)).andExpect(status().isUnauthorized());
         }
         verifyNoInteractions(orderRepository);
+    }
+
+    @Test
+    void waiterCanReadWasteManagementButKitchenCannot() throws Exception {
+        when(desperdicios.listar()).thenReturn(List.of());
+        for (String role : List.of("ADMINISTRADOR", "GARCOM")) {
+            mvc.perform(get("/api/desperdicios").header("Authorization", bearer(role)))
+                    .andExpect(status().isOk()).andExpect(content().json("[]"));
+        }
+        mvc.perform(get("/api/desperdicios").header("Authorization", bearer("COZINHA")))
+                .andExpect(status().isForbidden());
+        verify(desperdicios, times(2)).listar();
     }
 
     @Test
