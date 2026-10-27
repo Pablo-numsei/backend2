@@ -4,8 +4,10 @@ import com.itb.dto.MesaCreateRequest;
 import com.itb.dto.MesaQrResponse;
 import com.itb.dto.MesaResponse;
 import com.itb.dto.MesaUpdateRequest;
+import com.itb.dto.ManualTableContextRequest;
 import com.itb.dto.TableContextRequest;
 import com.itb.dto.TableContextResponse;
+import com.itb.service.ClienteAuthService;
 import com.itb.service.MesaService;
 import com.itb.service.TableAccessService;
 import jakarta.validation.Valid;
@@ -23,6 +25,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MesaController {
     private final MesaService mesaService;
+    private final ClienteAuthService clienteAuthService;
     private final TableAccessService tableAccessService;
 
     @GetMapping
@@ -45,6 +48,15 @@ public class MesaController {
     public ResponseEntity<TableContextResponse> getContext(@Valid @RequestBody TableContextRequest request) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
                 .body(tableAccessService.exchangeQr(request.qrToken()));
+    }
+
+    @PostMapping("/contexto-manual")
+    public ResponseEntity<TableContextResponse> getManualContext(
+            @Valid @RequestBody ManualTableContextRequest request,
+            @RequestHeader(value = "X-Customer-Token", required = false) String customerToken) {
+        clienteAuthService.requireCustomer(customerToken);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(tableAccessService.exchangeByNumber(request.numeroMesa()));
     }
 
     @PostMapping
