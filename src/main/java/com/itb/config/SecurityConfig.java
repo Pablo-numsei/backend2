@@ -66,7 +66,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/categorias", "/api/v1/categorias/**").hasRole("ADMINISTRADOR")
                         .requestMatchers(HttpMethod.GET, "/api/mesas/*/qr").hasAnyRole("ADMINISTRADOR", "GARCOM")
                         .requestMatchers(HttpMethod.GET, "/api/mesas/painel").hasAnyRole("ADMINISTRADOR", "GARCOM")
-                        .requestMatchers(HttpMethod.POST, "/api/mesas/contexto").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/mesas/contexto", "/api/mesas/contexto-manual").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/produtos/**", "/api/mesas/**", "/api/status-pedidos", "/api/push/public-key").permitAll()
                         .requestMatchers("/api/v1/produtos/**", "/api/mesas/**").hasRole("ADMINISTRADOR")
                         .requestMatchers("/api/desperdicios", "/api/desperdicios/**").hasRole("ADMINISTRADOR")
