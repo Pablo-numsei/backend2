@@ -88,6 +88,7 @@ class MesaContextHttpTest {
         mesa.setActive(true);
         mesa.setQrCode("synthetic-http-qr-version");
         when(mesaRepository.findByIdAndActiveTrue(3L)).thenReturn(Optional.of(mesa));
+        when(mesaRepository.findByNumberAndActiveTrue(7)).thenReturn(Optional.of(mesa));
         when(mesaService.listActive()).thenReturn(List.of(MesaResponse.from(mesa)));
         when(mesaService.getActive(3L)).thenReturn(MesaResponse.from(mesa));
         Order order = new Order();
@@ -147,6 +148,20 @@ class MesaContextHttpTest {
                 .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.mesa.id").value(3)).andExpect(jsonPath("$.mesa.number").value(7))
                 .andExpect(jsonPath("$.tableToken").isString()).andExpect(jsonPath("$.expiresAt").isString());
+    }
+
+    @Test
+    void authenticatedCustomerCanOpenTableContextByNumberWithoutQr() throws Exception {
+        mvc.perform(post("/api/mesas/contexto-manual")
+                        .header("X-Customer-Token", "synthetic-customer-session")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\\"numeroMesa\\":7}"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.mesa.id").value(3))
+                .andExpect(jsonPath("$.mesa.number").value(7))
+                .andExpect(jsonPath("$.tableToken").isString());
+        verify(clienteAuth).requireCustomer("synthetic-customer-session");
     }
 
     @Test
