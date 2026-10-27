@@ -163,7 +163,7 @@ class SecurityHttpTest {
 
     @Test
     void waiterCanRegisterFoodWasteButKitchenCannot() throws Exception {
-        String payload = "{\\"produtoId\\":7,\\"quantidade\\":1,\\"estoqueEsperado\\":5,\\"motivo\\":\\"DANIFICADO\\",\\"observacao\\":null,\\"custoUnitarioInformado\\":3.50}";
+        String payload = "{\"produtoId\":7,\"quantidade\":1,\"estoqueEsperado\":5,\"motivo\":\"DANIFICADO\",\"observacao\":null,\"custoUnitarioInformado\":3.50}";
         mvc.perform(post("/api/desperdicios").header("Authorization", bearer("GARCOM"))
                         .contentType(MediaType.APPLICATION_JSON).content(payload))
                 .andExpect(status().isCreated());
