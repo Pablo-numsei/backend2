@@ -69,6 +69,24 @@ class TableAccessServiceTest {
     }
 
     @Test
+    void authenticatedCustomerCanReceiveShortLivedContextByActiveTableNumber() {
+        when(mesaRepository.findByNumberAndActiveTrue(7)).thenReturn(Optional.of(mesa));
+
+        TableContextResponse context = tableAccess.exchangeByNumber(7);
+
+        assertEquals(3L, context.mesa().id());
+        assertEquals(7, context.mesa().number());
+        assertNotNull(jwt.readTableAccessToken(context.tableToken()));
+        assertTrue(context.expiresAt().isAfter(Instant.now()));
+    }
+
+    @Test
+    void unknownManualTableNumberIsRejected() {
+        when(mesaRepository.findByNumberAndActiveTrue(99)).thenReturn(Optional.empty());
+        assertThrows(ResourceNotFoundException.class, () -> tableAccess.exchangeByNumber(99));
+    }
+
+    @Test
     void validTableCapabilityPermitsWriteOnlyForItsMesa() throws Exception {
         stubActiveMesa();
 
