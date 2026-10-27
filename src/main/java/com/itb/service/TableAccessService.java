@@ -44,6 +44,21 @@ public class TableAccessService {
         return new TableContextResponse(MesaSummaryResponse.from(mesa), tableToken, context.expiresAt());
     }
 
+    /** Emits the same short-lived table capability as QR exchange, after a customer session is validated by the controller. */
+    @Transactional(readOnly = true)
+    public TableContextResponse exchangeByNumber(Integer number) {
+        if (number == null || number <= 0) {
+            throw new IllegalArgumentException("Informe um número de mesa válido.");
+        }
+        Mesa mesa = mesaRepository.findByNumberAndActiveTrue(number)
+                .filter(value -> Boolean.TRUE.equals(value.getActive()))
+                .orElseThrow(() -> new ResourceNotFoundException("Mesa não encontrada ou inativa."));
+        String tableToken = jwtService.generateTableAccessToken(mesa.getId(), version(mesa));
+        JwtService.TableTokenClaims context = jwtService.readTableAccessToken(tableToken);
+        if (context == null) throw new IllegalStateException("Não foi possível emitir o contexto da mesa.");
+        return new TableContextResponse(MesaSummaryResponse.from(mesa), tableToken, context.expiresAt());
+    }
+
     @Transactional(readOnly = true)
     public Mesa requireWriteAccess(Long mesaId, String tableToken) {
         if (currentUser.isStaff()) {
