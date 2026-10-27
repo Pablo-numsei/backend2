@@ -155,7 +155,7 @@ class MesaContextHttpTest {
         mvc.perform(post("/api/mesas/contexto-manual")
                         .header("X-Customer-Token", "synthetic-customer-session")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\\"numeroMesa\\":7}"))
+                        .content("{\"numeroMesa\":7}"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", "no-store"))
                 .andExpect(jsonPath("$.mesa.id").value(3))
