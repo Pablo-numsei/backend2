@@ -165,6 +165,19 @@ class MesaContextHttpTest {
     }
 
     @Test
+    void manualTableContextRejectsMissingCustomerSession() throws Exception {
+        when(clienteAuth.requireCustomer(isNull())).thenThrow(
+                new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.UNAUTHORIZED, "Sessão inválida."));
+
+        mvc.perform(post("/api/mesas/contexto-manual")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\\"numeroMesa\\":7}"))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(mesaRepository);
+    }
+
+    @Test
     void staffOrderAndShortTokensCannotBeExchangedAsQr() throws Exception {
         for (String token : List.of(jwt.generateToken(staff("ADMINISTRADOR")), jwt.generateOrderToken(3L), tableToken())) {
             mvc.perform(post("/api/mesas/contexto").contentType(MediaType.APPLICATION_JSON)
