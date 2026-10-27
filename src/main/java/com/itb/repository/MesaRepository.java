@@ -16,6 +16,7 @@ public interface MesaRepository extends JpaRepository<Mesa, Long> {
 
     List<Mesa> findByActiveTrueOrderByNumberAsc();
     Optional<Mesa> findByIdAndActiveTrue(Long id);
+    Optional<Mesa> findByNumberAndActiveTrue(Integer number);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select mesa from Mesa mesa where mesa.id = :id")
