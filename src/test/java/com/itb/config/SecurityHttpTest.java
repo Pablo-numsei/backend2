@@ -162,6 +162,20 @@ class SecurityHttpTest {
     }
 
     @Test
+    void waiterCanRegisterFoodWasteButKitchenCannot() throws Exception {
+        String payload = "{\\"produtoId\\":7,\\"quantidade\\":1,\\"estoqueEsperado\\":5,\\"motivo\\":\\"DANIFICADO\\",\\"observacao\\":null,\\"custoUnitarioInformado\\":3.50}";
+        mvc.perform(post("/api/desperdicios").header("Authorization", bearer("GARCOM"))
+                        .contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isCreated());
+        verify(desperdicios).registrar(any(), anyLong());
+
+        mvc.perform(post("/api/desperdicios").header("Authorization", bearer("COZINHA"))
+                        .contentType(MediaType.APPLICATION_JSON).content(payload))
+                .andExpect(status().isForbidden());
+        verifyNoMoreInteractions(desperdicios);
+    }
+
+    @Test
     void signedStaffTokenAllowsOperationalOrderList() throws Exception {
         mvc.perform(get("/api/pedidos").header("Authorization", bearer("COZINHA")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(42));
