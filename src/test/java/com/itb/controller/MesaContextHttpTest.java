@@ -172,7 +172,7 @@ class MesaContextHttpTest {
 
         mvc.perform(post("/api/mesas/contexto-manual")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\\"numeroMesa\\":7}"))
+                        .content("{\"numeroMesa\":7}"))
                 .andExpect(status().isUnauthorized());
         verifyNoInteractions(mesaRepository);
     }
