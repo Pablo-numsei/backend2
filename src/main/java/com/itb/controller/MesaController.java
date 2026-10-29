@@ -60,7 +60,7 @@ public class MesaController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'GARCOM')")
     public ResponseEntity<MesaResponse> create(@Valid @RequestBody MesaCreateRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(mesaService.create(request));
     }
