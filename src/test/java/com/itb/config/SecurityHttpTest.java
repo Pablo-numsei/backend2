@@ -198,7 +198,7 @@ class SecurityHttpTest {
     }
 
     @Test
-    void paymentHistoryIsVisibleToCashierButNotGuestsOrKitchen() throws Exception {
+    void paymentHistoryIsVisibleOnlyToAdministrator() throws Exception {
         when(payments.listRecentPayments()).thenReturn(List.of());
         mvc.perform(get("/api/payments")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/payments").header("X-Order-Token", jwt.generateOrderToken(42L)))
@@ -206,11 +206,11 @@ class SecurityHttpTest {
         mvc.perform(get("/api/payments").header("Authorization", bearer("COZINHA")))
                 .andExpect(status().isForbidden());
         verify(payments, never()).listRecentPayments();
-        for (String role : List.of("ADMINISTRADOR", "GARCOM")) {
-            mvc.perform(get("/api/payments").header("Authorization", bearer(role)))
-                    .andExpect(status().isOk()).andExpect(content().json("[]"));
-        }
-        verify(payments, times(2)).listRecentPayments();
+        mvc.perform(get("/api/payments").header("Authorization", bearer("GARCOM")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/payments").header("Authorization", bearer("ADMINISTRADOR")))
+                .andExpect(status().isOk()).andExpect(content().json("[]"));
+        verify(payments, times(1)).listRecentPayments();
     }
 
     @Test
